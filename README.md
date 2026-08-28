@@ -4,7 +4,7 @@
 
 Design Bible — special enemy system, evolution tree and behaviours.
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20mod-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seahdokki)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20mod-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seahworld)
 [![License](https://img.shields.io/badge/License-Non--Commercial%20Source--Available-8A6C1A)](LICENSE)
 
 > ⚑ 4 open points still to be decided — see [Open points](#open-points).
@@ -391,7 +391,7 @@ For anything outside these terms, ask.
 
 If you enjoy ZED+, you can support its development on Ko-fi:
 
-**☕ [ko-fi.com/seahdokki](https://ko-fi.com/seahdokki)**
+**☕ [ko-fi.com/seahworld](https://ko-fi.com/seahworld)**
 
 ---
 
