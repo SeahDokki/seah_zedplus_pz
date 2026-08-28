@@ -1,44 +1,56 @@
 # ZED+
 
-**Project Zomboid — Mod Design**
+**A Project Zomboid mod — Build 42**
 
-Design Bible — Système d'ennemis spéciaux, arbre d'évolution et comportements.
+Design Bible — special enemy system, evolution tree and behaviours.
 
-> ⚑ 4 points ouverts restent à définir — voir [Points ouverts](#points-ouverts).
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20mod-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seahdokki)
+[![License](https://img.shields.io/badge/License-Non--Commercial%20Source--Available-8A6C1A)](LICENSE)
+
+> ⚑ 4 open points still to be decided — see [Open points](#open-points).
 
 ---
 
-## Sommaire
+## Contents
 
-- [Mécanique de spawn](#mécanique-de-spawn)
-- [Arbre d'évolution](#arbre-dévolution)
-- [T1–T2 · Zombie Renforcé](#t1t2--zombie-renforcé)
-- [T3–T4 · Voies](#t3t4--voies)
-- [T5 · Formes finales](#t5--formes-finales)
-- [T6 · Calamités](#t6--calamités)
+- [Spawn mechanics](#spawn-mechanics)
+- [Evolution tree](#evolution-tree)
+- [T1–T2 · Reinforced Zombie](#t1t2--reinforced-zombie)
+- [T3–T4 · Paths](#t3t4--paths)
+- [T5 · Final forms](#t5--final-forms)
+- [T6 · Calamities](#t6--calamities)
 - [Easter Egg · Thriller](#easter-egg--thriller)
-- [Points ouverts](#points-ouverts)
+- [Open points](#open-points)
+- [License](#license)
+- [Support](#support)
 
 ---
 
-## Mécanique de spawn
+## Concept
 
-Le stade initial (T1–T4) est déterminé à l'apparition en fonction du jour d'apocalypse. À partir du T4, une évolution
-dynamique est possible : tenter de devenir une Calamité si les conditions de zone sont réunies, ou évoluer vers le T5
-après 4 jours de survie sans y parvenir. **Le T4 est une forme transitoire** — il cherche sa prochaine issue.
+Ordinary zombies are secretly "infected" from the moment they spawn. A Zed+ looks exactly like any other zombie until
+tier 5 — the danger is that you cannot tell which one it is until it acts.
 
-| Règle | Valeur |
+---
+
+## Spawn mechanics
+
+The initial tier (T1–T4) is decided at spawn time from the current apocalypse day. From T4 onward, dynamic evolution
+becomes possible: the zombie attempts to become a Calamity if the zone conditions are met, or evolves into a T5 after
+four days of survival if it cannot. **T4 is a transitional form** — it is looking for its next outcome.
+
+| Rule | Value |
 |---|---|
-| **Taux d'apparition** | ~1 Zed+ sur 400 zombies normaux |
-| **Seuils de stade (spawn)** | T1–T2 : Jour 0+ · T3–T4 : Jour 7+ · T5 : via T4, 4 jours de survie · T6 : via T4, conditions de zone |
-| **Condition T4 → T5** | Un T4 qui n'a pas pu devenir Calamité évolue en T5 après **4 jours de survie** dans le monde |
-| **Condition T4 → T6** | Aucune Calamité dans un rayon de **150 tiles** *et* **≥ 25 zombies** dans la zone *(valeur configurable)* |
-| **Exclusion régionale** | 1 seule Calamité active par rayon de 150 tiles. **Refus définitif** si le slot est occupé — le T4 ne peut jamais réessayer |
-| **Calamités pré-placées** | Certaines Calamités sont fixées en début de partie près de bâtiments importants de la carte. Elles occupent le slot régional comme une Calamité vivante |
+| **Spawn rate** | ~1 Zed+ per 400 ordinary zombies |
+| **Tier thresholds (at spawn)** | T1–T2: day 0+ · T3–T4: day 7+ · T5: via T4, 4 days of survival · T6: via T4, zone conditions |
+| **T4 → T5 condition** | A T4 that could not become a Calamity evolves into a T5 after **4 days of survival** in the world |
+| **T4 → T6 condition** | No Calamity within a **150-tile** radius *and* **≥ 25 zombies** in the zone *(configurable)* |
+| **Regional exclusion** | Only one active Calamity per 150-tile radius. **Permanent refusal** if the slot is taken — the T4 can never try again |
+| **Pre-placed Calamities** | Some Calamities are fixed at world generation near landmark buildings. They occupy the regional slot exactly like a living Calamity |
 
 ---
 
-## Arbre d'évolution
+## Evolution tree
 
 ```mermaid
 graph TD
@@ -51,295 +63,343 @@ graph TD
 
     FAST --> WITCH["Witch<br/>T5"]
     FAST --> VOLATILE["Volatile<br/>T5"]
-    TANK --> COLOSSE["Colosse<br/>T5"]
+    TANK --> COLOSSUS["Colossus<br/>T5"]
     TANK --> BOOMER["Boomer<br/>T5"]
     STEALTH --> SNEAKER["Sneaker<br/>T5"]
-    STEALTH --> MIMIQUE["Mimique<br/>T5"]
+    STEALTH --> MIMIC["Mimic<br/>T5"]
     RANGED --> SPITTER["Spitter<br/>T5"]
     RANGED --> SCOUT["Scout<br/>T5"]
 
-    STEALTH -.-> HOTE["L'Hôte<br/>T6 — Calamité"]
-    RANGED -.-> HOTE
-    FAST -.-> BRUME["La Brume<br/>T6 — Calamité"]
-    STEALTH -.-> BRUME
-    TANK -.-> LEADER["Le Leader<br/>T6 — Calamité"]
+    STEALTH -.-> HOST["The Host<br/>T6 — Calamity"]
+    RANGED -.-> HOST
+    FAST -.-> MIST["The Mist<br/>T6 — Calamity"]
+    STEALTH -.-> MIST
+    TANK -.-> LEADER["The Leader<br/>T6 — Calamity"]
     RANGED -.-> LEADER
-    FAST -.-> CENTAURE["Le Centaure<br/>T6 — Calamité"]
-    TANK -.-> CENTAURE
+    FAST -.-> CENTAUR["The Centaur<br/>T6 — Calamity"]
+    TANK -.-> CENTAUR
 ```
 
-- **Trait plein** — `T4 → T5` : après 4 jours de survie
-- **Trait pointillé** — `T4 → T6` : si les conditions de zone sont réunies (court-circuite le T5)
+- **Solid line** — `T4 → T5`: after 4 days of survival
+- **Dashed line** — `T4 → T6`: if the zone conditions are met (skips T5 entirely)
 
 ---
 
-## T1–T2 · Zombie Renforcé
+## T1–T2 · Reinforced Zombie
 
-**Jours 0+**
+**Day 0+**
 
-Indiscernable d'un zombie ordinaire — même apparence, mêmes sons, même comportement apparent. Stats légèrement
-supérieures. Le joueur ne sait pas qu'il a affaire à un Zed+. Les tenues custom et comportements distinctifs
-n'apparaissent qu'à partir du T5.
+Indistinguishable from an ordinary zombie — same appearance, same sounds, same apparent behaviour. Slightly higher
+stats. The player has no way of knowing they are facing a Zed+. Custom outfits and distinctive behaviour only appear
+from T5 onward.
 
 ---
 
-## T3–T4 · Voies
+## T3–T4 · Paths
 
-**Jours 7+ · Spécialisations**
+**Day 7+ · Specialisations**
 
-Différenciation **uniquement comportementale** — le Zed+ reste visuellement identique à un zombie ordinaire. La voie
-est tirée aléatoirement à l'apparition et détermine les formes T5 accessibles.
+Differentiation is **behavioural only** — the Zed+ still looks exactly like an ordinary zombie. The path is rolled
+randomly at spawn and determines which T5 forms are reachable.
 
-| Voie | Comportement |
+| Path | Behaviour |
 |---|---|
-| **Fast** | Plus rapide que la normale, moins résistant. *Apparence identique à un zombie normal.* Seule la vitesse le trahit. |
-| **Tank** | Nettement plus lent, mais bien plus résistant. *Apparence identique à un zombie normal.* Difficile à distinguer sans l'attaquer. |
-| **Stealth** | N'aggro le joueur que de très près. Reste allongé ou immobile dans les coins de bâtiments. *Apparence et sons normaux.* |
-| **Ranged** | Dégage un gaz de putréfaction. *Apparence normale.* La corpse sickness inhabituelle dans la zone peut alerter un joueur attentif. |
+| **Fast** | Faster than normal, less resistant. *Visually identical to a normal zombie.* Only its speed gives it away. |
+| **Tank** | Considerably slower, but far more resistant. *Visually identical to a normal zombie.* Hard to tell apart without attacking it. |
+| **Stealth** | Only aggros at very close range. Stays prone or motionless in building corners. *Normal appearance and sounds.* |
+| **Ranged** | Emits a putrefaction gas. *Normal appearance.* Unusual corpse sickness in the area may tip off an attentive player. |
 
 ---
 
-## T5 · Formes finales
+## T5 · Final forms
 
-**Jours 21+ · Mini-boss**
+**Day 21+ · Mini-bosses**
 
-Forme définitive tirée aléatoirement parmi les deux options de la voie. Comportement entièrement distinct.
+The final form is rolled randomly between the two options of the path. Behaviour is entirely distinct.
 
-### Voie Fast
+### Fast path
 
-#### Witch — *Passive et dangereuse*
+#### Witch — *Passive and dangerous*
 
-| Vitesse | Résistance | Aggro |
+| Speed | Resistance | Aggro |
 |---|---|---|
-| ×1.5 | Normale | Conditionnelle |
+| ×1.5 | Normal | Conditional |
 
-Reste immobile, assise ou debout, jusqu'à ce qu'un joueur fasse trop de bruit à proximité, l'éclaire directement, ou
-s'approche trop. Dès lors, elle pousse un unique hurlement et charge sans jamais décrocher.
+Stays motionless, sitting or standing, until a player makes too much noise nearby, shines a light directly on her, or
+gets too close. She then lets out a single scream and charges without ever disengaging.
 
-> **Mécanique clé** — Une fois aggrée, la poursuite est permanente : même si le joueur monte en voiture et s'éloigne,
-> la Witch maintient le cap indéfiniment.
+> **Key mechanic** — Once aggroed, the pursuit is permanent: even if the player gets into a car and drives away, the
+> Witch holds the chase indefinitely.
 
-#### Volatile — *Drone biologique aérien* ⚑
+#### Volatile — *Airborne biological drone* ⚑
 
-| Vitesse | Résistance | Vol |
+| Speed | Resistance | Flight |
 |---|---|---|
-| Rapide | Faible | Oui |
+| Fast | Low | Yes |
 
-Se déplace en vol simulé, franchissant clôtures et palissades. Dès qu'il repère un joueur, il émet 2 à 3 cris
-d'alerte pour attirer les zombies de la zone, puis meurt naturellement.
+Moves in simulated flight, crossing fences and palisades. As soon as it spots a player it emits 2–3 alert screams to
+draw in the zombies of the area, then dies naturally.
 
-> **Mécanique clé** — Vol : traverse toutes les fences et tall fences. N'attaque pas — son unique rôle est l'alerte de
-> zone avant de s'éteindre.
+> **Key mechanic** — Flight: crosses all fences and tall fences. Does not attack — its only role is to raise the
+> alarm before expiring.
 
-> ⚑ **À définir** — durée de vie après l'alerte.
+> ⚑ **To be decided** — lifespan after the alert.
 
-### Voie Tank
+### Tank path
 
-#### Colosse — *Mur de chair lente*
+#### Colossus — *A slow wall of flesh*
 
-| Vitesse | Résistance | Stagger |
+| Speed | Resistance | Stagger |
 |---|---|---|
-| Très lente | Très haute | Presque nul |
+| Very slow | Very high | Almost none |
 
-Se déplace lentement et inexorablement vers le joueur. Le stagger ne l'affecte presque pas — continuer à frapper ne le
-repousse pas.
+Moves slowly and inexorably toward the player. Stagger barely affects it — hitting it repeatedly will not push it
+back.
 
-> **Résistances** — `×2` dégâts armes tranchantes · `×0.5` armes contondantes
+> **Resistances** — `×2` damage from bladed weapons · `×0.5` from blunt weapons
 
-`Faiblesse : armes tranchantes ×2` · `Résistance : blunt ×0.5`
+`Weakness: bladed ×2` · `Resistance: blunt ×0.5`
 
-#### Boomer — *Bombe ambulante* ⚑
+#### Boomer — *Walking bomb* ⚑
 
-| Vitesse | Résistance | Danger |
+| Speed | Resistance | Threat |
 |---|---|---|
-| Extrêmement lente | Haute | Explosion |
+| Extremely slow | High | Explosion |
 
-Se dirige lentement vers le joueur dès qu'il le repère. À 4–5 tiles, il s'immobilise et pousse un cri. L'explosion
-survient 4 secondes plus tard.
+Heads slowly toward the player once it spots them. At 4–5 tiles it stops and screams. The explosion follows four
+seconds later.
 
-> **Explosion** — Lourds dégâts directs + projection d'acide sur les cellules proches (même effet que le Spitter).
+> **Explosion** — Heavy direct damage plus an acid splash on nearby cells (same effect as the Spitter).
 
-> ⚑ **À définir** — uniformiser l'effet acide avec le Spitter.
+> ⚑ **To be decided** — unify the acid effect with the Spitter.
 
-### Voie Stealth
+### Stealth path
 
-#### Sneaker — *Toujours dans le dos*
+#### Sneaker — *Always behind you*
 
-| Vitesse | Résistance | Son |
+| Speed | Resistance | Sound |
 |---|---|---|
-| Modérée/rapide | Normale | Respiration |
+| Moderate/fast | Normal | Breathing |
 
-S'efforce de maintenir une position dans le dos du joueur. Il ne produit pas les sons gutturaux habituels — uniquement
-une respiration haletante, détectable à l'écoute.
+Actively works to hold a position behind the player. It does not make the usual guttural sounds — only laboured
+breathing, audible if you listen for it.
 
-> **Détection** — Le joueur peut le repérer via le son de sa respiration. Aucun grognement, aucune alerte sonore
-> classique.
+> **Detection** — The player can locate it by the sound of its breathing. No growling, no conventional audio cue.
 
-#### Mimique — *Le cadavre qui attend* ⚑
+#### Mimic — *The corpse that waits* ⚑
 
-| Vitesse | Résistance | Réveil |
+| Speed | Resistance | Wake trigger |
 |---|---|---|
-| Rampant | Normale | Fouille / Contact |
+| Crawling | Normal | Search / contact |
 
-Reste allongé au sol, indiscernable d'un cadavre ordinaire. Se réveille si le joueur passe directement sur lui ou
-tente de le fouiller. Il renverse le joueur (résistance en fonction de la fitness) et s'attaque à ses pieds.
+Lies prone on the ground, indistinguishable from an ordinary corpse. Wakes up if the player walks directly over it or
+tries to loot it. It knocks the player down (resisted based on fitness) and attacks their feet.
 
-> **Après réveil** — Devient un rampant permanent jusqu'à réendormissement. Peut retourner à son état dormant si le
-> joueur s'éloigne suffisamment.
+> **After waking** — Becomes a permanent crawler until it goes dormant again. Can return to its dormant state if the
+> player moves far enough away.
 
-> ⚑ **À définir** — conditions de réendormissement.
+> ⚑ **To be decided** — exact conditions for going dormant again.
 
-### Voie Ranged
+### Ranged path
 
-#### Spitter — *Contrôle de zone acide*
+#### Spitter — *Acid area control*
 
-| Vitesse | Résistance | Portée |
+| Speed | Resistance | Range |
 |---|---|---|
-| Modérée | Normale | Distance |
+| Moderate | Normal | Ranged |
 
-Lance des flaques d'acide persistantes au sol. Un joueur qui stationne 0.5 seconde dans une flaque déclenche les
-effets : corrosion de l'équipement et brûlures sur les parties non couvertes.
+Throws persistent acid pools onto the ground. A player who stays 0.5 seconds in a pool triggers the effects:
+equipment corrosion and burns on uncovered body parts.
 
-> **Délai de 0.5 s** — Le joueur peut traverser rapidement la zone sans dégâts : la pénalité vise ceux qui ne
-> réagissent pas. Les flaques ont une durée de vie limitée.
+> **0.5 s delay** — The player can cross the area quickly without damage; the penalty targets those who fail to
+> react. Pools have a limited lifetime.
 
-#### Scout — *Alarme vivante*
+#### Scout — *Living alarm*
 
-| Vitesse | Résistance | Alerte |
+| Speed | Resistance | Alert |
 |---|---|---|
-| Rapide | Faible | Très large |
+| Fast | Low | Very wide |
 
-Dès qu'il repère un joueur, il fonce dans sa direction à vitesse rapide tout en hurlant continuellement. Son cri
-attire les zombies sur une portée comparable à un tir d'arme à feu.
+The moment it spots a player it sprints toward them while screaming continuously. Its scream draws zombies over a
+range comparable to a gunshot.
 
-> **Rôle Ranged** — Son danger n'est pas lui-même, c'est la horde qu'il convoque. L'éliminer silencieusement avant
-> qu'il crie est la priorité.
+> **Ranged role** — The danger is not the Scout itself, it is the horde it summons. Killing it quietly before it
+> screams is the priority.
 
 ---
 
-## T6 · Calamités
+## T6 · Calamities
 
-**4 Calamités · Voie spéciale T4 → T6**
+**4 Calamities · Special T4 → T6 route**
 
-Une Calamité par région (rayon ~150 tiles). Le passage T4→T6 court-circuite le T5 — c'est la priorité du T4, mais les
-conditions doivent être réunies. **Un T4 refusé ne peut jamais réessayer** : il reste T4 jusqu'à sa mort, ou évolue
-vers le T5 après 4 jours. Certaines Calamités sont pré-placées en début de partie près de bâtiments importants.
+One Calamity per region (~150-tile radius). The T4→T6 transition skips T5 entirely — it is the T4's first choice, but
+the conditions must be met. **A refused T4 can never try again**: it stays T4 until it dies, or evolves into a T5
+after four days. Some Calamities are pre-placed at world generation near landmark buildings.
 
-Chaque Calamité hérite de deux classes ; chaque classe apparaît dans exactement deux Calamités.
+Each Calamity inherits two classes; each class appears in exactly two Calamities.
 
-| Calamité | Classes | Accessible depuis |
+| Calamity | Classes | Reachable from |
 |---|---|---|
-| **L'Hôte** | Stealth + Ranged | T4 Stealth ou T4 Ranged |
-| **La Brume** | Fast + Stealth | T4 Fast ou T4 Stealth |
-| **Le Leader** | Tank + Ranged | T4 Tank ou T4 Ranged |
-| **Le Centaure** | Fast + Tank | T4 Fast ou T4 Tank |
+| **The Host** | Stealth + Ranged | T4 Stealth or T4 Ranged |
+| **The Mist** | Fast + Stealth | T4 Fast or T4 Stealth |
+| **The Leader** | Tank + Ranged | T4 Tank or T4 Ranged |
+| **The Centaur** | Fast + Tank | T4 Fast or T4 Tank |
 
-### L'Hôte — *Usine à zombies*
+### The Host — *Zombie factory*
 
 `Stealth · Ranged`
 
-| Vitesse | Résistance | Attaque |
+| Speed | Resistance | Attack |
 |---|---|---|
-| Immobile | Extrême | Aucune |
+| Immobile | Extreme | None |
 
-Couché au sol, indiscernable d'un cadavre ordinaire. Incapable de se mouvoir ou d'attaquer. Tant qu'il est en vie, il
-génère continuellement des Zed+ T1–T2 lorsqu'un joueur approche ou qu'un bruit fort est perçu (tir, hélicoptère…). Sa
-nature Stealth le rend difficile à repérer ; sa nature Ranged lui confère une portée de génération élevée.
+Lies on the ground, indistinguishable from an ordinary corpse. Unable to move or attack. While alive it continuously
+spawns T1–T2 Zed+ whenever a player approaches or a loud noise is heard (gunfire, helicopter…). Its Stealth nature
+makes it hard to spot; its Ranged nature gives it a wide spawning radius.
 
-> **Priorité** — Il faut l'éliminer pour stopper le flux. Très difficile à tuer sans se faire déborder par ses propres
-> créations.
+> **Priority** — It has to be killed to stop the flow, and it is very hard to kill without being overrun by its own
+> creations.
 
-### La Brume — *Fumigène vivant*
+### The Mist — *Living smoke grenade*
 
 `Fast · Stealth`
 
-| Vitesse | Résistance | Zone |
+| Speed | Resistance | Area |
 |---|---|---|
-| Rapide | Faible | Fumée dense |
+| Fast | Low | Dense smoke |
 
-Se déplace rapidement et imprévisiblement en émettant en continu un nuage de fumée dense — même effet qu'un fumigène
-vanilla. La visibilité dans son sillage est quasi nulle. Sa nature Stealth la rend extrêmement difficile à localiser
-dans sa propre fumée. Elle ne combat pas : son rôle est de créer une zone aveugle pour les zombies qui suivent.
+Moves fast and unpredictably while continuously emitting a dense smoke cloud — the same effect as a vanilla smoke
+grenade. Visibility in its wake is close to zero. Its Stealth nature makes it extremely hard to locate inside its own
+smoke. It does not fight: its role is to create a blind zone for the zombies following it.
 
-> **Implémentation** — Spawn continu de `IsoSmokeEmitter` (objet vanilla) sur la position de La Brume à chaque tick.
-> La fumée disparaît naturellement après quelques secondes, mais la Brume se déplace et en génère sans cesse.
+> **Implementation** — Continuously spawn `IsoSmokeEmitter` (vanilla object) at the Mist's position every tick. The
+> smoke dissipates naturally after a few seconds, but the Mist keeps moving and keeps producing more.
 
-> **Contre-jeu** — L'éliminer à distance avant qu'elle s'approche : une fois dans son nuage, la viser est très
-> difficile. Tirer au son. Résistance faible — elle meurt vite si on la touche.
+> **Counterplay** — Kill it at range before it closes in: once you are inside its cloud, aiming at it is very hard.
+> Shoot toward the sound. Its resistance is low — it dies quickly once hit.
 
-### Le Leader — *Commandant de horde*
+### The Leader — *Horde commander*
 
 `Tank · Ranged`
 
-| Vitesse | Résistance | Taille |
+| Speed | Resistance | Size |
 |---|---|---|
-| Très lente | Haute | Exceptionnelle |
+| Very slow | High | Exceptional |
 
-Masse imposante et lente autour de laquelle les zombies s'agglutinent naturellement. Dès qu'il repère un joueur, il
-attrape un zombie parmi ceux qui l'entourent et le projette à toute vitesse vers la cible. Le zombie impacté devient
-rampant au sol. Sans zombies à portée, le Leader avance et frappe au corps-à-corps pour des dégâts lourds.
+A massive, slow body that ordinary zombies naturally cluster around. Once it spots a player, it grabs one of the
+surrounding zombies and hurls it at high speed toward the target. The impacted zombie becomes a crawler. With no
+zombies in reach, the Leader closes in and hits in melee for heavy damage.
 
-> **Implémentation projectile** — Déplacement rapide du zombie cible via `setX()`/`setY()` par ticks. À l'impact
-> (~1 tile du joueur) : dégâts + état rampant. Piste à explorer : `ThrowableProjectile` Java pour un arc visuel réel.
+> **Projectile implementation** — Move the thrown zombie rapidly via `setX()`/`setY()` across ticks. On impact
+> (~1 tile from the player): damage plus crawler state. Worth exploring: the Java `ThrowableProjectile` for a real
+> ballistic arc.
 
-`Vulnérable sans escorte` · `Éliminer la horde d'abord`
+`Vulnerable without escort` · `Clear the horde first`
 
-### Le Centaure — *Le sprinter inarrêtable*
+### The Centaur — *The unstoppable sprinter*
 
 `Fast · Tank`
 
-| Vitesse | Résistance | Stagger |
+| Speed | Resistance | Stagger |
 |---|---|---|
-| Extrême | Haute | Nul en charge |
+| Extreme | High | None while charging |
 
-Sprint à vitesse extrême vers le joueur en cycles de charge. Pendant la charge, aucun stagger ne peut l'arrêter — il
-traverse la horde environnante et détruit sur son passage tout obstacle cassable : fenêtres, portes, clôtures. Seuls
-les murs solides l'arrêtent. À l'impact : dégâts lourds et forte projection du joueur. Après chaque charge, il marque
-une courte pause avant de repartir.
+Sprints at extreme speed toward the player in charge cycles. During a charge no stagger can stop it — it ploughs
+through the surrounding horde and destroys every breakable obstacle in its path: windows, doors, fences. Only solid
+walls stop it. On impact: heavy damage and strong player knockback. After each charge it pauses briefly before going
+again.
 
-> **Destruction en charge** — Vérification tile par tile de la trajectoire via `IsoThumpable` : destruction forcée de
-> tout objet cassable sur le chemin. Les murs solides (non-thumpables) bloquent et cassent la charge. Permet de
-> défoncer une base légèrement fortifiée si le joueur ne sort pas à sa rencontre.
+> **Destruction while charging** — Check the trajectory tile by tile via `IsoThumpable` and force-destroy every
+> breakable object in the way. Solid, non-thumpable walls block and break the charge. This lets it smash into a
+> lightly fortified base if the player refuses to come out.
 
-> **Contre-jeu** — Les phases de pause entre deux charges sont le seul moment d'attaque sûr. Esquiver sur le côté au
-> dernier moment est la technique principale : le Centaure ne freine pas et repart loin dans la direction de la charge.
+> **Counterplay** — The pauses between charges are the only safe window to attack. Dodging sideways at the last
+> moment is the core technique: the Centaur does not brake and carries far past you in the charge direction.
 
-`Pause post-charge` · `Murs solides = stop net` · `Obstacles cassables ignorés`
+`Post-charge pause` · `Solid walls = hard stop` · `Breakable obstacles ignored`
 
 ---
 
 ## Easter Egg · Thriller
 
-**Événement ultra-rare**
+**Ultra-rare event**
 
-Sur certaines routes, une chance infime de tomber sur quelque chose d'inattendu — un groupe de zombies qui danse.
-Inspiré d'*Armageddon Riders* et de *Michael Jackson's Thriller*.
+On certain roads, a vanishingly small chance to run into something unexpected — a group of dancing zombies. Inspired
+by *Armageddon Riders* and *Michael Jackson's Thriller*.
 
 | | |
 |---|---|
-| **Déclenchement** | Chance ultra-rare à la traversée d'un segment de route. Indépendant du système Zed+. |
-| **Composition** | 5 à 8 zombies ordinaires en cercle · 1 zombie central en tenue orange (outfit dédié) |
-| **Son** | Boucle audio "Thriller" modifiée jouée en son monde (volume faible, rayon ~15 tiles). Disparaît si les zombies meurent. |
-| **Comportement** | Zombies en rotation lente sur eux-mêmes (`setFacing()` cyclique). Ils aggrèrent normalement si le joueur s'approche — la danse cesse. |
-| **Implémentation son** | Fichier `.ogg` custom dans `media/sound/` · déclenché via `getSoundManager():PlayWorldSound()` |
-| **Limites connues** | Pas d'animation "danse" native en Lua — simulé via rotation + son. L'effet repose sur la surprise du joueur plus que sur le visuel. |
+| **Trigger** | Ultra-rare chance when crossing a road segment. Independent of the Zed+ system. |
+| **Composition** | 5 to 8 ordinary zombies in a circle · 1 central zombie in an orange outfit (dedicated outfit) |
+| **Sound** | Modified "Thriller" audio loop played as a world sound (low volume, ~15-tile radius). Stops if the zombies die. |
+| **Behaviour** | Zombies slowly rotating in place (cyclic `setFacing()`). They aggro normally if the player approaches — the dance stops. |
+| **Sound implementation** | Custom `.ogg` file in `media/sound/`, triggered via `getSoundManager():PlayWorldSound()` |
+| **Known limits** | No native "dance" animation available from Lua — simulated with rotation plus sound. The effect relies on surprise more than on visuals. |
 
 ---
 
-## Points ouverts
+## Open points
 
-1. **Volatile** — durée de vie exacte après l'alerte, avant la mort naturelle
-2. **Boomer / Spitter** — uniformiser l'effet acide (même implémentation)
-3. **Mimique** — conditions exactes de réendormissement (distance ? timer ?)
-4. **Scout** — comportement exact au contact (attaque au corps-à-corps ? ou fuite ?)
+1. **Volatile** — exact lifespan after the alert, before dying naturally
+2. **Boomer / Spitter** — unify the acid effect (shared implementation)
+3. **Mimic** — exact conditions for going dormant again (distance? timer?)
+4. **Scout** — exact behaviour on contact (melee attack? or flee?)
 
 ---
 
-## Documentation du projet
+## Contributing
 
-| Fichier | Contenu |
+Contributions are welcome — bug fixes, behaviour tuning, compatibility patches and translations.
+
+- **Code is English-only.** Names and comments in English, no exceptions.
+- **No hardcoded player-facing strings.** Everything goes through the translation files: EN, FR, ES and DE at
+  minimum, all four updated in the same change.
+- **All identifiers are prefixed `SZedPlus`** — mod id, modData keys, Lua namespaces, translation keys.
+- **No AI-generated assets.** AI assistance on code is fine; images, textures, models, sounds and music must be
+  human-authored. See [LICENSE](LICENSE) §4.
+
+By contributing you agree to the terms in [LICENSE](LICENSE) §5.
+
+---
+
+## License
+
+ZED+ is **source-available, not open source** — see [LICENSE](LICENSE) for the terms that actually apply.
+
+**You may**, free of charge and without asking:
+
+- play the mod, on any private or public server
+- study and modify it for your own use
+- contribute changes back
+- build and publish compatibility or add-on mods (`ZED+ x <other mod>`)
+- include it in modpacks and collections, unmodified and credited
+
+**You may not**:
+
+- claim authorship of the mod or republish it under another name
+- sell it, or put it behind a paywall, subscription or paid tier — commercial rights are reserved to the author
+- relicense it under different terms
+- contribute AI-generated assets (images, sounds, models); AI-assisted *code* is allowed
+
+Credit as **ZED+ by Seah (SeahDokki)** with a link back to this repository.
+
+For anything outside these terms, ask.
+
+---
+
+## Support
+
+If you enjoy ZED+, you can support its development on Ko-fi:
+
+**☕ [ko-fi.com/seahdokki](https://ko-fi.com/seahdokki)**
+
+---
+
+## Project documentation
+
+| File | Contents |
 |---|---|
-| `README.md` | Ce document — la design bible de référence |
-| [zedplus-design-bible.md](zedplus-design-bible.md) | Version condensée + notes techniques (structure du mod, persistance, modData) |
-| [pz-zedplus-design.html](pz-zedplus-design.html) | Version HTML mise en page (source de ce README) |
-| [CLAUDE.md](CLAUDE.md) | Repères d'implémentation : environnement, layout Build 42, architecture |
+| `README.md` | This document — the reference design bible |
+| [zedplus-design-bible.md](zedplus-design-bible.md) | Condensed version plus technical notes (mod structure, persistence, modData) |
+| [pz-zedplus-design.html](pz-zedplus-design.html) | Styled HTML version (source of this README) |
+| [CLAUDE.md](CLAUDE.md) | Implementation reference: environment, Build 42 layout, architecture |

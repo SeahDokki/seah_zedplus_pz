@@ -75,9 +75,9 @@ carries ongoing evaluation logic; T1–T3 are set-and-forget stat tweaks.
 
 **Two persistence tiers with different lifetimes.** Per-zombie state lives in `zombie:getModData()` and is saved
 with the *chunk* — it survives unloading but is scoped to that zombie. Cross-zombie state (the calamity registry,
-used for the "one Calamité per 150-tile radius" exclusion) cannot live there; it lives in
+used for the "one Calamity per 150-tile radius" exclusion) cannot live there; it lives in
 `ModData.getOrCreate("SZedPlus")`, held in memory and flushed on `Events.EveryTenMinutes`. Anything that must answer
-a *global* question ("is there already a Calamité near here?") belongs in the registry, not in per-zombie data.
+a *global* question ("is there already a Calamity near here?") belongs in the registry, not in per-zombie data.
 
 **Refusals are permanent.** `data.SZedPlus_calamityRefused` exists so a T4 that loses the regional-exclusion roll
 never retries. This keeps the T6 check O(1) amortized instead of running a radius scan on every eligible zombie
@@ -92,7 +92,7 @@ spawn decisions, promotion checks and the registry go in `media/lua/server`. Tie
 
 **Several behaviours need Java-side APIs reached from Lua** and are the risky parts of the project: simulated
 flight via `IsoFlagType.fence` path checks (Volatile), forced destruction of `IsoThumpable` objects along a charge
-path (Centaure), `IsoSmokeEmitter` spawning (Brume), and zombie-as-projectile movement via per-tick
+path (Centaur), `IsoSmokeEmitter` spawning (Mist), and zombie-as-projectile movement via per-tick
 `setX()/setY()` (Leader). Each has a stated fallback in the bible — verify the Java signature against
 `projectzomboid.jar` before building on it, since these are the calls most likely to have changed in B42.
 
