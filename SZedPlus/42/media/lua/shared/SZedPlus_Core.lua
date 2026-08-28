@@ -16,6 +16,15 @@ SZedPlus.Keys = {
     t4SpawnDay      = "SZedPlus_t4SpawnDay",
     calamityRefused = "SZedPlus_calamityRefused",
     calamityId      = "SZedPlus_calamityId",
+    form            = "SZedPlus_form",
+    calamityKind    = "SZedPlus_calamityKind",
+
+    -- The zombie's values as the game rolled them, captured before any
+    -- modifier is applied. Modifiers are always computed from these, never
+    -- from the current values, so re-applying on a chunk reload is idempotent
+    -- instead of compounding.
+    baseHealth      = "SZedPlus_baseHealth",
+    baseWalkType    = "SZedPlus_baseWalkType",
 }
 
 --- The four T3-T4 specialisation paths.
@@ -86,6 +95,15 @@ function SZedPlus.log(message, ...)
     print("[SZedPlus] " .. tostring(message))
 end
 
+--- Always printed, regardless of the Debug option. For output the user asked
+--- for explicitly, such as a debug menu action reporting its result.
+function SZedPlus.logAlways(message, ...)
+    if select("#", ...) > 0 then
+        message = string.format(message, ...)
+    end
+    print("[SZedPlus] " .. tostring(message))
+end
+
 --- Always printed. For conditions that mean the mod is misconfigured or broken.
 function SZedPlus.logError(message, ...)
     if select("#", ...) > 0 then
@@ -127,6 +145,29 @@ end
 --- Specialisation path, or nil below T3.
 function SZedPlus.getPath(zombie)
     return zombie:getModData()[SZedPlus.Keys.path]
+end
+
+--- T5 final form ("witch", "boomer", ...), or nil below T5.
+function SZedPlus.getForm(zombie)
+    return zombie:getModData()[SZedPlus.Keys.form]
+end
+
+--- T6 Calamity kind ("host", "mist", ...), or nil below T6.
+function SZedPlus.getCalamityKind(zombie)
+    return zombie:getModData()[SZedPlus.Keys.calamityKind]
+end
+
+--- Short human-readable label, for logs and debug output.
+function SZedPlus.describe(zombie)
+    if not SZedPlus.isZedPlus(zombie) then return "ordinary" end
+    local stage = SZedPlus.getStage(zombie) or "?"
+    local detail = SZedPlus.getCalamityKind(zombie)
+        or SZedPlus.getForm(zombie)
+        or SZedPlus.getPath(zombie)
+    if detail then
+        return string.format("T%s %s", tostring(stage), tostring(detail))
+    end
+    return string.format("T%s", tostring(stage))
 end
 
 -- ---------------------------------------------------------------- random --

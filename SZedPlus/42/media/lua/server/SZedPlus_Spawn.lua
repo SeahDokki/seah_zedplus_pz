@@ -6,8 +6,7 @@
 ---
 --- OnZombieCreate also fires when a chunk reloads and its zombies are
 --- re-instantiated, but modData survives that, so the `initialized` guard makes
---- the handler idempotent. Keep this function cheap: it runs for every zombie
---- the game creates.
+--- the handler idempotent. Keep this cheap: it runs for every zombie created.
 
 --- Multiplayer: files under server/ are loaded on clients too. Zombie
 --- classification is a world decision and must happen in exactly one place, or
@@ -21,6 +20,52 @@ SZedPlus.Spawn = {}
 -- shared/ is loaded before server/, so this is already populated.
 local Keys = SZedPlus.Keys
 
+--- Set by forceNext() and consumed by the next OnZombieCreate. Used by the
+--- debug menu to spawn a chosen tier without waiting for the rarity roll.
+local pendingSpec = nil
+
+-- ----------------------------------------------------------------- apply --
+
+--- Write a fully decided spec onto a zombie.
+--- spec = { stage = 1..6, path = "fast", form = "witch", calamity = "host" }
+---
+--- Returns true if it was applied. Exposed so the debug tools and, later, the
+--- promotion logic can share one writer for this state.
+function SZedPlus.Spawn.applySpec(zombie, spec)
+    if zombie == nil or spec == nil or spec.stage == nil then return false end
+
+    local data = zombie:getModData()
+    local day = SZedPlus.getCurrentDay()
+
+    data[Keys.initialized] = true
+    data[Keys.isSpecial] = true
+    data[Keys.stage] = spec.stage
+    data[Keys.path] = spec.path
+    data[Keys.form] = spec.form
+    data[Keys.calamityKind] = spec.calamity
+
+    -- T4 is transitional. Record when it got there so the survival delay
+    -- before falling back to a T5 can be measured.
+    if spec.stage == 4 then
+        data[Keys.t4SpawnDay] = day
+    end
+
+    -- Queued, not applied: the engine is still building this zombie and would
+    -- overwrite its health as soon as this hook returns.
+    SZedPlus.Behaviour.queue(zombie)
+
+    SZedPlus.log("applied %s at day %d", SZedPlus.describe(zombie), day)
+    return true
+end
+
+--- Force the next zombie created to match this spec, bypassing the rarity
+--- roll. Consumed once, so it cannot leak into unrelated spawns.
+function SZedPlus.Spawn.forceNext(spec)
+    pendingSpec = spec
+end
+
+-- ------------------------------------------------------------------ roll --
+
 --- Roll a stage inside the band allowed by the current day.
 local function rollStage(day)
     local minStage, maxStage = SZedPlus.Config.getStageRangeForDay(day)
@@ -28,14 +73,11 @@ local function rollStage(day)
     return minStage + ZombRand(maxStage - minStage + 1)
 end
 
---- Turn an ordinary zombie into a Zed+ and stamp its state.
-local function classify(zombie, day)
-    local data = zombie:getModData()
+--- Build a spec for a natural spawn, or nil if no Zed+ can appear today.
+local function rollSpec(day)
     local stage = rollStage(day)
-    if not stage then return false end
+    if not stage then return nil end
 
-    -- The path only means anything from T3: below that a Zed+ is just a
-    -- slightly tougher zombie with no specialisation.
     local path = nil
     if stage >= 3 then
         -- Only roll among paths the player left enabled. With all four off,
@@ -48,36 +90,44 @@ local function classify(zombie, day)
         end
     end
 
-    data[Keys.isSpecial] = true
-    data[Keys.stage] = stage
-    data[Keys.path] = path
-
-    -- T4 is transitional. Record when it got there so the +4 day fallback to
-    -- T5 can be measured later.
-    if stage == 4 then
-        data[Keys.t4SpawnDay] = day
-    end
-
-    SZedPlus.log("spawned T%d %s at day %d", stage, tostring(path or "-"), day)
-    return true
+    return { stage = stage, path = path }
 end
 
---- Mark a zombie as processed. Ordinary zombies get the flag too, so the roll
---- is never repeated for them on a chunk reload.
-local function markInitialized(zombie)
-    zombie:getModData()[Keys.initialized] = true
-end
+-- ----------------------------------------------------------------- hooks --
 
 --- Entry point: decide what this zombie is.
 function SZedPlus.Spawn.onZombieCreate(zombie)
     if zombie == nil then return end
-    if SZedPlus.isInitialized(zombie) then return end
 
-    if SZedPlus.rollOneIn(SZedPlus.Config.get("SpawnRate")) then
-        classify(zombie, SZedPlus.getCurrentDay())
+    -- A forced spec wins over everything, including the initialized guard:
+    -- the debug menu spawns a zombie and claims the very next creation.
+    if pendingSpec ~= nil then
+        local spec = pendingSpec
+        pendingSpec = nil
+        SZedPlus.Spawn.applySpec(zombie, spec)
+        return
     end
 
-    markInitialized(zombie)
+    -- Already classified. This fires again whenever a chunk brings its zombies
+    -- back, which is exactly when the modifiers need re-applying: the engine
+    -- rebuilds the zombie, modData survives, the stats do not necessarily.
+    if SZedPlus.isInitialized(zombie) then
+        if SZedPlus.isZedPlus(zombie) then
+            SZedPlus.Behaviour.queue(zombie)
+        end
+        return
+    end
+
+    if SZedPlus.rollOneIn(SZedPlus.Config.get("SpawnRate")) then
+        local spec = rollSpec(SZedPlus.getCurrentDay())
+        if spec then
+            SZedPlus.Spawn.applySpec(zombie, spec)
+        end
+    end
+
+    -- Ordinary zombies get the flag too, so the roll is never repeated for
+    -- them when their chunk reloads.
+    zombie:getModData()[Keys.initialized] = true
 end
 
 Events.OnZombieCreate.Add(SZedPlus.Spawn.onZombieCreate)

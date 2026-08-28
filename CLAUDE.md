@@ -170,8 +170,37 @@ all four `Sandbox_<LANG>.txt` files.
 `scratchpad/i18ncheck.py` verifies that the four locales define identical keys and that every option and page has a
 translation; `scratchpad/luacheck.py` does a rough balance check on the Lua files.
 
+## Engine gotchas (learned by breaking things)
+
+**The engine finishes building a zombie after `OnZombieCreate` returns, and overwrites its health.** Setting stats
+from that hook silently loses them - the value reads back as the engine's, not yours, with no error. Classification
+still happens in the hook (writing modData is fine), but stat changes go through `SZedPlus.Behaviour.queue()`, which
+applies them a couple of ticks later from `OnTick`. A queue, not a check inside `OnZombieUpdate`: that hook runs for
+every zombie every tick, while the queue is empty almost always.
+
+**Do not trust a name found by grepping strings in a `.class` file.** `setHearing` appears in `IsoZombie` and is not
+a method - `hearing` is an `int` field with no setter, so per-zombie hearing cannot be changed from Lua. Calling it
+threw at runtime. Verify a signature before building on it: `scratchpad/methodsig.py <file.class> <name>` parses the
+constant pool and prints real method descriptors.
+
+**Confirmed signatures** (B42.20): `getHealth()F` and `setHealth(F)V` on `IsoGameCharacter`; `getWalkType()` returns
+a `String` and `setWalkType(String)`, `setSpeedTypeFromWalkType()`, `getSpeedType()I` on `IsoZombie`. Walk type
+values, from the engine's own doc: "slow1-3 if it's a shambler, or sprint1-5 if it's a sprinter" - the ordering
+within a family is inferred, not documented.
+
+## Tier modifiers
+
+`SZedPlus_Tiers.lua` holds the numbers, `SZedPlus_Behaviour.lua` applies them. Everything is **relative**: health
+multiplies what the game rolled, and speed shifts the walk type along a scale, so the player's Toughness and Speed
+sandbox settings are preserved. A T3 is a T4 with the path effect halved, via `PATH_SCALE`.
+
+Idempotence matters because the modifiers are re-applied whenever a chunk reloads: the original health and walk type
+are captured once into modData, and every modifier is computed from those, never from the current values.
+
 ## Current state
 
-The skeleton loads: sandbox options, config with fallbacks, core helpers, the Calamity registry, the spawn roll, and
-debug helpers. No tier behaviour is implemented — a Zed+ is classified and recorded, but behaves like an ordinary
-zombie. Turn on the Debug sandbox option for spawn logging.
+Implemented: sandbox options, config with fallbacks, the Calamity registry, the spawn roll, T1-T4 health and speed
+modifiers, and the debug tooling (right-click > Debug > Zed+: spawn any tier, GetStats panel, inspect, remove).
+
+Not implemented: the Stealth short-aggro behaviour (no way to set hearing - needs a different mechanism), the Ranged
+putrefaction gas, every T5 form, every T6 Calamity, tier promotion (T4 to T5/T6), and the Thriller easter egg.
