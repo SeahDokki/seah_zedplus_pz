@@ -83,12 +83,15 @@ notices, credits and this License file must be preserved intact.
 
 4. AI-GENERATED CONTENT
 
-Generative AI may be used to assist with Code. It may not be used to produce
-Assets: every image, texture, sprite, icon, model, animation, sound and piece
-of music distributed with the Mod, or contributed to it, must be authored by
-a human or lawfully sourced from a human-authored work. Contributions
-containing AI-generated Assets will be rejected, and their inclusion is a
-breach of this License.
+Generative AI may be used to assist with Code, and this expressly includes
+translation files: machine-translated strings are acceptable, though a review
+by a speaker of the language is preferred where one is available.
+
+Generative AI may not be used to produce Assets. Every image, texture,
+sprite, icon, model, animation, sound and piece of music distributed with the
+Mod, or contributed to it, must be authored by a human or lawfully sourced
+from a human-authored work. Contributions containing AI-generated Assets will
+be rejected, and their inclusion is a breach of this License.
 
 
 5. CONTRIBUTIONS

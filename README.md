@@ -355,8 +355,8 @@ Contributions are welcome — bug fixes, behaviour tuning, compatibility patches
 - **No hardcoded player-facing strings.** Everything goes through the translation files: EN, FR, ES and DE at
   minimum, all four updated in the same change.
 - **All identifiers are prefixed `SZedPlus`** — mod id, modData keys, Lua namespaces, translation keys.
-- **No AI-generated assets.** AI assistance on code is fine; images, textures, models, sounds and music must be
-  human-authored. See [LICENSE](LICENSE) §4.
+- **No AI-generated assets.** AI assistance on code and translations is fine; images, textures, models, sounds and
+  music must be human-authored. See [LICENSE](LICENSE) §4.
 
 By contributing you agree to the terms in [LICENSE](LICENSE) §5.
 
@@ -379,7 +379,7 @@ ZED+ is **source-available, not open source** — see [LICENSE](LICENSE) for the
 - claim authorship of the mod or republish it under another name
 - sell it, or put it behind a paywall, subscription or paid tier — commercial rights are reserved to the author
 - relicense it under different terms
-- contribute AI-generated assets (images, sounds, models); AI-assisted *code* is allowed
+- contribute AI-generated assets (images, sounds, models); AI-assisted *code and translations* are allowed
 
 Credit as **ZED+ by Seah (SeahDokki)** with a link back to this repository.
 
