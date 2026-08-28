@@ -114,21 +114,64 @@ French and the user works in French, but nothing French belongs in the Lua sourc
 Minimum shipped locales: **EN, FR, ES, DE**. English is the reference and the fallback. Create all four folders at
 once and add every new string to all four in the same change — never English-only.
 
-Build 42.20 stores translations as **JSON**, one flat `"KEY": "value"` object per file (verified against
-`<game>\media\lua\shared\Translate\<LANG>\*.json`; the old B41 `.txt` + `Charset` format is gone). Mirror that
-layout:
+**Translations are JSON, one file per language folder, with no language suffix in the filename.** B42.20 dropped
+the `.txt` format completely - vanilla `Translate/<LANG>/` contains only `.json`. Some installed B42 mods still ship
+`IG_UI_EN.txt`; that is dead weight, the loader ignores it. Verified the hard way: sandbox options shipped as
+`Sandbox_FR.txt` rendered as raw keys in game, and switching to `Sandbox.json` was the fix.
 
 ```
 42/media/lua/shared/Translate/
-  EN/  IG_UI_EN.json      <- UI strings
-       ItemName_EN.json   <- item display names
-  FR/  ...                <- same filenames, FR suffix
-  ES/  ...
-  DE/  ...
+  EN/Sandbox.json     ->  { "Sandbox_SZedPlus_Foo": "Bar" }
+  EN/IG_UI.json
+  FR/Sandbox.json     <- same filename; the folder carries the language
+  ES/... DE/...
 ```
 
+Flat `"KEY": "value"` objects, UTF-8, no BOM. The path the engine builds is
+`<mod>/media/lua/shared/Translate/<LANG>/<Name>.json` - the name has no `_EN` suffix.
+
 Key naming follows the vanilla category prefix plus the mod prefix, e.g. `IGUI_SZedPlus_WitchScream`,
-`ItemName_SZedPlus_AcidPool`. Look up the right category prefix in the vanilla files rather than inventing one —
+`Sandbox_SZedPlus_SpawnRate`. Look up the right category prefix in the vanilla files rather than inventing one -
 the game resolves keys by category, so a wrong prefix silently renders the raw key.
 
 The four locale files are the *only* place French appears in the mod's shipped content.
+
+## Deploying locally
+
+`deploy.ps1` (gitignored, local only) copies `SZedPlus\` into `%USERPROFILE%\Zomboid\mods\SZedPlus\`, wiping the
+destination first so renamed and deleted files do not linger. `.\deploy.ps1 -DryRun` shows what it would do. It
+refuses to touch anything outside `Zomboid\mods`.
+
+## Multiplayer (hard requirement)
+
+The mod must work in single player, on a dedicated server, and on a co-op host. This constrains the layout:
+
+- **Files under `server/` are loaded on multiplayer clients too.** Every file that decides world state opens with
+  `if isClient() then return end` — the same guard the vanilla Lua uses. Without it, each client rolls its own
+  answer and diverges from the server.
+- **Zombie modData is not replicated.** `zombie:getModData()` is empty on a multiplayer client. Anything the client
+  needs to render (T5 appearance, effects) must be pushed explicitly via `sendServerCommand` / `OnServerCommand`.
+  The debug helpers say so and warn when called on a remote client.
+- **Sandbox options are replicated**, so both sides read the same config.
+- `getPlayer()` does not exist on a dedicated server — iterate over connected players.
+
+Context helpers live in `SZedPlus_Core.lua`: `isAuthoritative()`, `isSinglePlayer()`, `isDedicatedServer()`.
+
+## Sandbox options
+
+All tunables come from `42/media/sandbox-options.txt`, exposed as `SandboxVars.SZedPlus.<Name>`. **Never read
+`SandboxVars` directly** — go through `SZedPlus.Config.get("Name")`, which falls back to a default when an option
+is missing (older save, partial server override). The `DEFAULTS` table in `SZedPlus_Config.lua` must stay in sync
+with the `default =` lines in the options file.
+
+Adding an option means touching four places: the options file, the `DEFAULTS` table, and the label plus tooltip in
+all four `Sandbox_<LANG>.txt` files.
+
+`scratchpad/i18ncheck.py` verifies that the four locales define identical keys and that every option and page has a
+translation; `scratchpad/luacheck.py` does a rough balance check on the Lua files.
+
+## Current state
+
+The skeleton loads: sandbox options, config with fallbacks, core helpers, the Calamity registry, the spawn roll, and
+debug helpers. No tier behaviour is implemented — a Zed+ is classified and recorded, but behaves like an ordinary
+zombie. Turn on the Debug sandbox option for spawn logging.

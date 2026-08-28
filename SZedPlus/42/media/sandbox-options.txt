@@ -1,0 +1,301 @@
+VERSION = 1,
+
+/*
+ * ZED+ sandbox options.
+ *
+ * Option names map to SandboxVars.SZedPlus.<Name> in Lua. Read them through
+ * SZedPlus.Config, never directly: the config layer applies fallbacks so the
+ * mod still runs if an option is missing (older save, server override).
+ *
+ * Translation keys live in media/lua/shared/Translate/<LANG>/Sandbox_<LANG>.txt
+ * as Sandbox_<translation> and Sandbox_<translation>_tooltip.
+ */
+
+/* ------------------------------------------------------------- general -- */
+
+option SZedPlus.SpawnRate
+{
+    type = integer,
+    min = 1,
+    max = 5000,
+    default = 400,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_SpawnRate,
+}
+
+option SZedPlus.DayTier1
+{
+    type = integer,
+    min = 0,
+    max = 365,
+    default = 0,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_DayTier1,
+}
+
+option SZedPlus.DayTier3
+{
+    type = integer,
+    min = 0,
+    max = 365,
+    default = 7,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_DayTier3,
+}
+
+option SZedPlus.DayTier5
+{
+    type = integer,
+    min = 0,
+    max = 365,
+    default = 21,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_DayTier5,
+}
+
+option SZedPlus.DayTier6
+{
+    type = integer,
+    min = 0,
+    max = 365,
+    default = 30,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_DayTier6,
+}
+
+option SZedPlus.T4SurvivalDays
+{
+    type = integer,
+    min = 0,
+    max = 60,
+    default = 4,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_T4SurvivalDays,
+}
+
+option SZedPlus.Debug
+{
+    type = boolean,
+    default = false,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_Debug,
+}
+
+/* --------------------------------------------------------------- paths -- */
+
+option SZedPlus.PathFast
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusPaths,
+    translation = SZedPlus_PathFast,
+}
+
+option SZedPlus.PathTank
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusPaths,
+    translation = SZedPlus_PathTank,
+}
+
+option SZedPlus.PathStealth
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusPaths,
+    translation = SZedPlus_PathStealth,
+}
+
+option SZedPlus.PathRanged
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusPaths,
+    translation = SZedPlus_PathRanged,
+}
+
+/* ---------------------------------------------------- T5 : final forms -- */
+
+option SZedPlus.FormWitch
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormWitch,
+}
+
+option SZedPlus.FormVolatile
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormVolatile,
+}
+
+option SZedPlus.FormColossus
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormColossus,
+}
+
+option SZedPlus.FormBoomer
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormBoomer,
+}
+
+option SZedPlus.FormSneaker
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormSneaker,
+}
+
+option SZedPlus.FormMimic
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormMimic,
+}
+
+option SZedPlus.FormSpitter
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormSpitter,
+}
+
+option SZedPlus.FormScout
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusForms,
+    translation = SZedPlus_FormScout,
+}
+
+/* ------------------------------------------------------ T6 : calamities -- */
+
+option SZedPlus.CalamitiesEnabled
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamitiesEnabled,
+}
+
+option SZedPlus.CalamityHost
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityHost,
+}
+
+option SZedPlus.CalamityMist
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityMist,
+}
+
+option SZedPlus.CalamityLeader
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityLeader,
+}
+
+option SZedPlus.CalamityCentaur
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityCentaur,
+}
+
+option SZedPlus.CalamityRadius
+{
+    type = integer,
+    min = 10,
+    max = 1000,
+    default = 150,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityRadius,
+}
+
+option SZedPlus.CalamityMinZombies
+{
+    type = integer,
+    min = 0,
+    max = 200,
+    default = 25,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityMinZombies,
+}
+
+option SZedPlus.CalamityPrePlaced
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusCalamities,
+    translation = SZedPlus_CalamityPrePlaced,
+}
+
+/* -------------------------------------------------------------- extras -- */
+
+option SZedPlus.ThrillerEnabled
+{
+    type = boolean,
+    default = true,
+
+    page = SZedPlusExtras,
+    translation = SZedPlus_ThrillerEnabled,
+}
+
+option SZedPlus.ThrillerRarity
+{
+    type = integer,
+    min = 100,
+    max = 50000,
+    default = 5000,
+
+    page = SZedPlusExtras,
+    translation = SZedPlus_ThrillerRarity,
+}

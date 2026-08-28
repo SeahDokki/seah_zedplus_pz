@@ -1,0 +1,9 @@
+# Local dev scripts (deploy.ps1 and friends) - machine-specific paths
+*.ps1
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
