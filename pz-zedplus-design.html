@@ -1,0 +1,1141 @@
+<title>Zed+ Design Bible</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+/* ── TOKENS ── */
+:root {
+  --bg:        #0C0D0B;
+  --surface:   #141610;
+  --panel:     #1A1D16;
+  --panel-hi:  #20241C;
+  --border:    #252920;
+  --border-hi: #313728;
+
+  --accent:    #92B438;
+  --accent-lo: rgba(146,180,56,.13);
+
+  --txt1: #E2DEC8;
+  --txt2: #747668;
+  --txt3: #424538;
+
+  --fast:        #2A8EA0; --fast-lo:    rgba(42,142,160,.14);
+  --tank:        #A03C2C; --tank-lo:    rgba(160,60,44,.14);
+  --stealth:     #5E3EA0; --stealth-lo: rgba(94,62,160,.14);
+  --ranged:      #8A6C1A; --ranged-lo:  rgba(138,108,26,.14);
+  --calamity:    #9E2E68; --calamity-lo:rgba(158,46,104,.14);
+
+  --todo: #C07A18;
+
+  --r: 5px;
+  --font-d: 'Bebas Neue', sans-serif;
+  --font-u: 'Barlow Condensed', sans-serif;
+  --font-b: 'Crimson Pro', Georgia, serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:        #ECEADB;
+    --surface:   #F4F2E6;
+    --panel:     #FDFBF0;
+    --panel-hi:  #FFFFFF;
+    --border:    #D4D2BE;
+    --border-hi: #BDBAA6;
+    --accent:    #547A14;
+    --accent-lo: rgba(84,122,20,.1);
+    --txt1: #141610;
+    --txt2: #56594A;
+    --txt3: #8A8C7C;
+    --fast:        #1A6878; --fast-lo:    rgba(26,104,120,.1);
+    --tank:        #7A2A1A; --tank-lo:    rgba(122,42,26,.1);
+    --stealth:     #48268A; --stealth-lo: rgba(72,38,138,.1);
+    --ranged:      #684E0C; --ranged-lo:  rgba(104,78,12,.1);
+    --calamity:    #7A1A4E; --calamity-lo:rgba(122,26,78,.1);
+    --todo: #8A5410;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#0C0D0B;--surface:#141610;--panel:#1A1D16;--panel-hi:#20241C;
+  --border:#252920;--border-hi:#313728;
+  --accent:#92B438;--accent-lo:rgba(146,180,56,.13);
+  --txt1:#E2DEC8;--txt2:#747668;--txt3:#424538;
+  --fast:#2A8EA0;--fast-lo:rgba(42,142,160,.14);
+  --tank:#A03C2C;--tank-lo:rgba(160,60,44,.14);
+  --stealth:#5E3EA0;--stealth-lo:rgba(94,62,160,.14);
+  --ranged:#8A6C1A;--ranged-lo:rgba(138,108,26,.14);
+  --calamity:#9E2E68;--calamity-lo:rgba(158,46,104,.14);
+  --todo:#C07A18;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body {
+  background: var(--bg);
+  color: var(--txt1);
+  font-family: var(--font-b);
+  font-size: 16px;
+  line-height: 1.65;
+  min-height: 100vh;
+}
+
+/* ── LAYOUT ── */
+.wrapper { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ── HEADER ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 36px 24px 32px;
+  position: relative;
+}
+header .inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.header-text {}
+.eyebrow {
+  font-family: var(--font-u);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+header h1 {
+  font-family: var(--font-d);
+  font-size: clamp(48px, 7vw, 80px);
+  line-height: .92;
+  letter-spacing: .02em;
+  color: var(--txt1);
+}
+.header-sub {
+  margin-top: 10px;
+  font-style: italic;
+  color: var(--txt2);
+  font-size: 15px;
+  max-width: 520px;
+}
+.theme-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--txt2);
+  font-family: var(--font-u);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 7px 14px;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+  white-space: nowrap;
+}
+.theme-btn:hover { color: var(--txt1); border-color: var(--border-hi); }
+
+/* ── SECTION HEADERS ── */
+.sec-label {
+  font-family: var(--font-u);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 20px;
+  padding-top: 48px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.sec-title {
+  font-family: var(--font-d);
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1;
+  color: var(--txt1);
+  margin-bottom: 8px;
+}
+.sec-desc { color: var(--txt2); font-size: 15px; max-width: 600px; margin-bottom: 28px; }
+
+/* ── RULES GRID ── */
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.rule-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 18px;
+}
+.rule-label {
+  font-family: var(--font-u);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 6px;
+}
+.rule-val {
+  font-size: 15px;
+  color: var(--txt1);
+  line-height: 1.4;
+}
+
+/* ── EVOLUTION TREE ── */
+.tree-wrap {
+  overflow-x: auto;
+  margin-top: 24px;
+  padding-bottom: 8px;
+}
+.tree-svg-container {
+  min-width: 780px;
+}
+
+/* ── TIER SECTION ── */
+.tier-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.tier-badge-big {
+  font-family: var(--font-d);
+  font-size: 13px;
+  letter-spacing: .12em;
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: var(--panel-hi);
+  border: 1px solid var(--border);
+  color: var(--txt2);
+}
+.tier-desc { color: var(--txt2); font-style: italic; font-size: 15px; }
+
+/* ── SPECIALIZATION CARDS (T3-T4) ── */
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.spec-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px 20px;
+  border-left: 3px solid;
+}
+.spec-card.fast    { border-color: var(--fast); }
+.spec-card.tank    { border-color: var(--tank); }
+.spec-card.stealth { border-color: var(--stealth); }
+.spec-card.ranged  { border-color: var(--ranged); }
+.spec-name {
+  font-family: var(--font-d);
+  font-size: 22px;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+.spec-card.fast .spec-name    { color: var(--fast); }
+.spec-card.tank .spec-name    { color: var(--tank); }
+.spec-card.stealth .spec-name { color: var(--stealth); }
+.spec-card.ranged .spec-name  { color: var(--ranged); }
+.spec-desc { font-size: 14px; color: var(--txt2); line-height: 1.5; }
+
+/* ── ENEMY CARDS (T5) ── */
+.path-group { margin-bottom: 40px; }
+.path-title {
+  font-family: var(--font-u);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+.path-title.fast    { background: var(--fast-lo);    color: var(--fast);    border: 1px solid var(--fast); }
+.path-title.tank    { background: var(--tank-lo);    color: var(--tank);    border: 1px solid var(--tank); }
+.path-title.stealth { background: var(--stealth-lo); color: var(--stealth); border: 1px solid var(--stealth); }
+.path-title.ranged  { background: var(--ranged-lo);  color: var(--ranged);  border: 1px solid var(--ranged); }
+
+.enemy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.enemy-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.enemy-card-top {
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.enemy-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.badge {
+  font-family: var(--font-u);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.badge-tier {
+  background: var(--panel-hi);
+  color: var(--txt2);
+  border: 1px solid var(--border);
+}
+.badge-fast    { background: var(--fast-lo);    color: var(--fast); }
+.badge-tank    { background: var(--tank-lo);    color: var(--tank); }
+.badge-stealth { background: var(--stealth-lo); color: var(--stealth); }
+.badge-ranged  { background: var(--ranged-lo);  color: var(--ranged); }
+.badge-calamity{ background: var(--calamity-lo);color: var(--calamity); }
+.badge-todo    { background: rgba(192,122,24,.14); color: var(--todo); border: 1px solid var(--todo); font-size:9px; }
+
+.enemy-name {
+  font-family: var(--font-d);
+  font-size: 32px;
+  letter-spacing: .04em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.enemy-card.fast    .enemy-name { color: var(--fast); }
+.enemy-card.tank    .enemy-name { color: var(--tank); }
+.enemy-card.stealth .enemy-name { color: var(--stealth); }
+.enemy-card.ranged  .enemy-name { color: var(--ranged); }
+.enemy-card.calamity .enemy-name { color: var(--calamity); }
+
+.enemy-tagline { font-style: italic; color: var(--txt2); font-size: 14px; }
+
+/* Stats row */
+.stats-row {
+  display: flex;
+  gap: 0;
+  margin: 14px 0 0;
+}
+.stat {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--panel-hi);
+  border: 1px solid var(--border);
+}
+.stat:not(:last-child) { border-right: none; }
+.stat:first-child { border-radius: var(--r) 0 0 var(--r); }
+.stat:last-child  { border-radius: 0 var(--r) var(--r) 0; }
+.stat-label {
+  font-family: var(--font-u);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  display: block;
+  margin-bottom: 2px;
+}
+.stat-val {
+  font-family: var(--font-u);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt1);
+  display: block;
+}
+.stat-val.hi  { color: var(--accent); }
+.stat-val.lo  { color: var(--txt2); }
+.stat-val.max { color: #E05050; }
+
+/* Card body */
+.enemy-card-body { padding: 16px 22px 18px; }
+.behavior {
+  font-size: 14.5px;
+  color: var(--txt1);
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+.mecanique {
+  background: var(--panel-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--txt2);
+  line-height: 1.5;
+}
+.mecanique strong {
+  display: block;
+  font-family: var(--font-u);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 4px;
+}
+.weakness-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.weakness-pill {
+  font-family: var(--font-u);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.pill-weak  { border-color: #E05050; color: #E05050; background: rgba(224,80,80,.08); }
+.pill-res   { border-color: var(--txt3); color: var(--txt3); background: transparent; }
+.pill-imm   { border-color: var(--accent); color: var(--accent); background: var(--accent-lo); }
+
+/* ── CALAMITY CARDS ── */
+.calamity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.enemy-card.calamity {
+  border-color: var(--calamity);
+}
+.enemy-card.calamity .enemy-card-top {
+  background: var(--calamity-lo);
+}
+.compat-row {
+  margin-top: 10px;
+  font-family: var(--font-u);
+  font-size: 11px;
+  color: var(--txt3);
+  letter-spacing: .06em;
+}
+.compat-row span { color: var(--txt2); }
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 28px 24px;
+  margin-top: 60px;
+  font-family: var(--font-u);
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: var(--txt3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.footer-inner { max-width: 1100px; margin: 0 auto; width: 100%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+/* todo notice */
+.todo-note {
+  font-family: var(--font-u);
+  font-size: 11px;
+  color: var(--todo);
+  letter-spacing: .04em;
+}
+.todo-note::before { content: '⚑ '; }
+</style>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="inner">
+    <div class="header-text">
+      <p class="eyebrow">Project Zomboid — Mod Design</p>
+      <h1>ZED+</h1>
+      <p class="header-sub">Design Bible — Système d'ennemis spéciaux, arbre d'évolution et comportements</p>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()">Thème ☽/☀</button>
+  </div>
+</header>
+
+<!-- ══ WRAPPER ══ -->
+<div class="wrapper">
+
+  <!-- ── RÈGLES GLOBALES ── -->
+  <p class="sec-label">Règles globales</p>
+  <h2 class="sec-title">Mécanique de spawn</h2>
+  <p class="sec-desc">Le stade initial (T1–T4) est déterminé à l'apparition en fonction du jour d'apocalypse. À partir du T4, une évolution dynamique est possible : tenter de devenir une Calamité si les conditions de zone sont réunies, ou évoluer vers le T5 après 4 jours de survie sans y parvenir. Le T4 est une forme transitoire — il cherche sa prochaine issue.</p>
+
+  <div class="rules-grid">
+    <div class="rule-card">
+      <p class="rule-label">Taux d'apparition</p>
+      <p class="rule-val">~1 Zed+ sur 400 zombies normaux</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Seuils de stade (spawn)</p>
+      <p class="rule-val">T1–T2 : Jour 0+<br>T3–T4 : Jour 7+<br>T5 : via T4 · 4 jours survie<br>T6 : via T4 · conditions zone</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Condition T4 → T5</p>
+      <p class="rule-val">Un T4 qui n'a pas pu devenir Calamité évolue en T5 après <strong>4 jours de survie</strong> dans le monde.</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Condition T4 → T6</p>
+      <p class="rule-val">Aucune Calamité dans un rayon de 150 tiles <em>et</em> ≥ 25 zombies dans la zone. (valeur configurable)</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Calamités pré-placées</p>
+      <p class="rule-val">Certaines Calamités sont fixées en début de partie près de bâtiments importants de la carte. Elles occupent le slot régional comme une Calamité vivante.</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Exclusion régionale</p>
+      <p class="rule-val">1 seule Calamité active par rayon de 150 tiles. Refus définitif si slot occupé — le T4 ne peut jamais réessayer.</p>
+    </div>
+  </div>
+
+  <!-- ── ARBRE D'ÉVOLUTION ── -->
+  <p class="sec-label">Arbre d'évolution</p>
+  <h2 class="sec-title">Progression</h2>
+  <div class="tree-wrap">
+    <div class="tree-svg-container">
+      <canvas id="treeCanvas" width="900" height="480"></canvas>
+    </div>
+  </div>
+
+  <!-- ── T1–T2 ── -->
+  <p class="sec-label">Tier 1 – 2</p>
+  <div class="tier-header">
+    <h2 class="sec-title">Zombie Renforcé</h2>
+    <span class="tier-badge-big">Jours 0+</span>
+  </div>
+  <p class="sec-desc">Indiscernable d'un zombie ordinaire — même apparence, mêmes sons, même comportement apparent. Stats légèrement supérieures. Le joueur ne sait pas qu'il a affaire à un Zed+. Les tenues custom et comportements distinctifs n'apparaissent qu'à partir du T5.</p>
+
+  <!-- ── T3–T4 ── -->
+  <p class="sec-label">Tier 3 – 4 • Spécialisations</p>
+  <div class="tier-header">
+    <h2 class="sec-title">Voies</h2>
+    <span class="tier-badge-big">Jours 7+</span>
+  </div>
+  <p class="sec-desc">Différenciation uniquement comportementale — le Zed+ reste visuellement identique à un zombie ordinaire. La voie est tirée aléatoirement à l'apparition et détermine les formes T5 accessibles.</p>
+
+  <div class="spec-grid">
+    <div class="spec-card fast">
+      <p class="spec-name">Fast</p>
+      <p class="spec-desc">Plus rapide que la normale, moins résistant. <strong>Apparence identique à un zombie normal.</strong> Seule la vitesse le trahit.</p>
+    </div>
+    <div class="spec-card tank">
+      <p class="spec-name">Tank</p>
+      <p class="spec-desc">Nettement plus lent, mais bien plus résistant. <strong>Apparence identique à un zombie normal.</strong> Difficile à distinguer sans l'attaquer.</p>
+    </div>
+    <div class="spec-card stealth">
+      <p class="spec-name">Stealth</p>
+      <p class="spec-desc">N'aggro le joueur que de très près. Reste allongé ou immobile dans les coins de bâtiments. <strong>Apparence et sons normaux.</strong></p>
+    </div>
+    <div class="spec-card ranged">
+      <p class="spec-name">Ranged</p>
+      <p class="spec-desc">Dégage un gaz de putréfaction. <strong>Apparence normale.</strong> La corpse sickness inhabituelle dans la zone peut alerter un joueur attentif.</p>
+    </div>
+  </div>
+
+  <!-- ── T5 ── -->
+  <p class="sec-label">Tier 5 • Mini-boss</p>
+  <div class="tier-header">
+    <h2 class="sec-title">Formes finales</h2>
+    <span class="tier-badge-big">Jours 21+</span>
+  </div>
+  <p class="sec-desc">Forme définitive tirée aléatoirement parmi les deux options de la voie. Comportement entièrement distinct.</p>
+
+  <!-- FAST -->
+  <div class="path-group">
+    <span class="path-title fast">Fast</span>
+    <div class="enemy-grid">
+
+      <!-- WITCH -->
+      <div class="enemy-card fast">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-fast">Fast</span>
+          </div>
+          <h3 class="enemy-name">Witch</h3>
+          <p class="enemy-tagline">Passive et dangereuse</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val hi">×1.5</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val">Normale</span></div>
+            <div class="stat"><span class="stat-label">Aggro</span><span class="stat-val lo">Conditionnelle</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Reste immobile, assise ou debout, jusqu'à ce qu'un joueur fasse trop de bruit à proximité, l'éclaire directement, ou s'approche trop. Dès lors, elle pousse un unique hurlement et charge sans jamais décrocher.</p>
+          <div class="mecanique">
+            <strong>Mécanique clé</strong>
+            Une fois aggrée, la poursuite est permanente — même si le joueur monte en voiture et s'éloigne, la Witch maintient le cap indéfiniment.
+          </div>
+        </div>
+      </div>
+
+      <!-- VOLATILE -->
+      <div class="enemy-card fast">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-fast">Fast</span>
+            <span class="badge badge-todo">À définir</span>
+          </div>
+          <h3 class="enemy-name">Volatile</h3>
+          <p class="enemy-tagline">Drone biologique aérien</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val hi">Rapide</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val lo">Faible</span></div>
+            <div class="stat"><span class="stat-label">Vol</span><span class="stat-val hi">Oui</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Se déplace en vol simulé, franchissant clôtures et palissades. Dès qu'il repère un joueur, il émet 2 à 3 cris d'alerte pour attirer les zombies de la zone, puis meurt naturellement.</p>
+          <div class="mecanique">
+            <strong>Mécanique clé</strong>
+            Vol : traverse toutes les fences et tall fences. N'attaque pas — son unique rôle est l'alerte de zone avant de s'éteindre.
+          </div>
+          <p class="todo-note" style="margin-top:10px">Durée de vie après alerte à définir</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TANK -->
+  <div class="path-group">
+    <span class="path-title tank">Tank</span>
+    <div class="enemy-grid">
+
+      <!-- COLOSSE -->
+      <div class="enemy-card tank">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-tank">Tank</span>
+          </div>
+          <h3 class="enemy-name">Colosse</h3>
+          <p class="enemy-tagline">Mur de chair lente</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val lo">Très lente</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val max">Très haute</span></div>
+            <div class="stat"><span class="stat-label">Stagger</span><span class="stat-val lo">Presque nul</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Se déplace lentement et inexorablement vers le joueur. Le stagger ne l'affecte presque pas — continuer à frapper ne le repousse pas.</p>
+          <div class="mecanique">
+            <strong>Résistances</strong>
+            ×2 dégâts armes tranchantes · ×0.5 armes contondantes
+          </div>
+          <div class="weakness-row">
+            <span class="weakness-pill pill-weak">Armes tranchantes ×2</span>
+            <span class="weakness-pill pill-res">Blunt ×0.5</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOOMER -->
+      <div class="enemy-card tank">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-tank">Tank</span>
+          </div>
+          <h3 class="enemy-name">Boomer</h3>
+          <p class="enemy-tagline">Bombe ambulante</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val lo">Extrêmement lente</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val hi">Haute</span></div>
+            <div class="stat"><span class="stat-label">Danger</span><span class="stat-val max">Explosion</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Se dirige lentement vers le joueur dès qu'il le repère. À 4–5 tiles, il s'immobilise et pousse un cri. L'explosion survient 4 secondes plus tard.</p>
+          <div class="mecanique">
+            <strong>Explosion</strong>
+            Lourds dégâts directs + projection d'acide sur les cellules proches (même effet que le Spitter).
+          </div>
+          <p class="todo-note" style="margin-top:10px">Uniformiser l'effet acide avec le Spitter</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STEALTH -->
+  <div class="path-group">
+    <span class="path-title stealth">Stealth</span>
+    <div class="enemy-grid">
+
+      <!-- SNEAKER -->
+      <div class="enemy-card stealth">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-stealth">Stealth</span>
+          </div>
+          <h3 class="enemy-name">Sneaker</h3>
+          <p class="enemy-tagline">Toujours dans le dos</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val hi">Modérée/rapide</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val">Normale</span></div>
+            <div class="stat"><span class="stat-label">Son</span><span class="stat-val lo">Respiration</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">S'efforce de maintenir une position dans le dos du joueur. Il ne produit pas les sons guturaux habituels — uniquement une respiration haletante, détectable à l'écoute.</p>
+          <div class="mecanique">
+            <strong>Détection</strong>
+            Le joueur peut le repérer via le son de sa respiration. Aucun grognement, aucune alerte sonore classique.
+          </div>
+        </div>
+      </div>
+
+      <!-- MIMIQUE -->
+      <div class="enemy-card stealth">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-stealth">Stealth</span>
+            <span class="badge badge-todo">À définir</span>
+          </div>
+          <h3 class="enemy-name">Mimique</h3>
+          <p class="enemy-tagline">Le cadavre qui attend</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val lo">Rampant</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val">Normale</span></div>
+            <div class="stat"><span class="stat-label">Réveil</span><span class="stat-val lo">Fouille / Contact</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Reste allongé au sol, indiscernable d'un cadavre ordinaire. Se réveille si le joueur passe directement sur lui ou tente de le fouiller. Il renverse le joueur (résistance en fonction de la fitness) et s'attaque à ses pieds.</p>
+          <div class="mecanique">
+            <strong>Après réveil</strong>
+            Devient un rampant permanent jusqu'à réendormissement. Peut retourner à son état dormant si le joueur s'éloigne suffisamment.
+          </div>
+          <p class="todo-note" style="margin-top:10px">Conditions de réendormissement à définir</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RANGED -->
+  <div class="path-group">
+    <span class="path-title ranged">Ranged</span>
+    <div class="enemy-grid">
+
+      <!-- SPITTER -->
+      <div class="enemy-card ranged">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-ranged">Ranged</span>
+          </div>
+          <h3 class="enemy-name">Spitter</h3>
+          <p class="enemy-tagline">Contrôle de zone acide</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val">Modérée</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val">Normale</span></div>
+            <div class="stat"><span class="stat-label">Portée</span><span class="stat-val hi">Distance</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Lance des flaques d'acide persistent au sol. Un joueur qui stationne 0.5 secondes dans une flaque déclenche les effets. Corrosion de l'équipement et brûlures sur les parties non couvertes.</p>
+          <div class="mecanique">
+            <strong>Délai de 0.5s</strong>
+            Le joueur peut traverser rapidement la zone sans dégâts — la pénalité vise ceux qui ne réagissent pas. Les flaques ont une durée de vie limitée.
+          </div>
+        </div>
+      </div>
+
+      <!-- SCOUT -->
+      <div class="enemy-card ranged">
+        <div class="enemy-card-top">
+          <div class="enemy-meta">
+            <span class="badge badge-tier">T5</span>
+            <span class="badge badge-ranged">Ranged</span>
+          </div>
+          <h3 class="enemy-name">Scout</h3>
+          <p class="enemy-tagline">Alarme vivante</p>
+          <div class="stats-row">
+            <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val hi">Rapide</span></div>
+            <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val lo">Faible</span></div>
+            <div class="stat"><span class="stat-label">Alerte</span><span class="stat-val max">Très large</span></div>
+          </div>
+        </div>
+        <div class="enemy-card-body">
+          <p class="behavior">Dès qu'il repère un joueur, il fonce dans sa direction à vitesse rapide tout en hurlant continuellement. Son cri attire les zombies sur une portée comparable à un tir de feu d'arme.</p>
+          <div class="mecanique">
+            <strong>Rôle Ranged</strong>
+            Son danger n'est pas lui-même — c'est la horde qu'il convoque. L'éliminer silencieusement avant qu'il crie est la priorité.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── T6 CALAMITÉS ── -->
+  <p class="sec-label">Tier 6 • Calamités</p>
+  <div class="tier-header">
+    <h2 class="sec-title">Calamités</h2>
+    <span class="tier-badge-big">4 Calamités · Voie spéciale T4 → T6</span>
+  </div>
+  <p class="sec-desc">Une Calamité par région (rayon ~150 tiles). Le passage T4→T6 court-circuite le T5 — c'est la priorité du T4, mais les conditions doivent être réunies. Un T4 refusé ne peut jamais réessayer : il reste T4 jusqu'à sa mort, ou évolue vers le T5 après 4 jours. Certaines Calamités sont pré-placées en début de partie près de bâtiments importants.</p>
+
+  <div class="calamity-grid">
+
+    <!-- L'HÔTE -->
+    <div class="enemy-card calamity">
+      <div class="enemy-card-top">
+        <div class="enemy-meta">
+          <span class="badge badge-tier">T6</span>
+          <span class="badge badge-calamity">Calamité</span>
+        </div>
+        <h3 class="enemy-name">L'Hôte</h3>
+        <p class="enemy-tagline">Usine à zombies</p>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val lo">Immobile</span></div>
+          <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val max">Extrême</span></div>
+          <div class="stat"><span class="stat-label">Attaque</span><span class="stat-val lo">Aucune</span></div>
+        </div>
+        <p class="compat-row">Compatible : <span>Stealth · Ranged</span></p>
+      </div>
+      <div class="enemy-card-body">
+        <p class="behavior">Couché au sol, indiscernable d'un cadavre ordinaire. Incapable de se mouvoir ou d'attaquer. Tant qu'il est en vie, il génère continuellement des Zed+ T1–T2 lorsqu'un joueur approche ou qu'un bruit fort est perçu (tir, hélicoptère…). Sa nature Stealth le rend difficile à repérer ; sa nature Ranged lui confère une portée de génération élevée.</p>
+        <div class="mecanique">
+          <strong>Priorité</strong>
+          Il faut l'éliminer pour stopper le flux. Très difficile à tuer sans se faire déborder par ses propres créations.
+        </div>
+      </div>
+    </div>
+
+    <!-- LA BRUME -->
+    <div class="enemy-card calamity">
+      <div class="enemy-card-top">
+        <div class="enemy-meta">
+          <span class="badge badge-tier">T6</span>
+          <span class="badge badge-calamity">Calamité</span>
+        </div>
+        <h3 class="enemy-name">La Brume</h3>
+        <p class="enemy-tagline">Fumigène vivant</p>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val hi">Rapide</span></div>
+          <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val lo">Faible</span></div>
+          <div class="stat"><span class="stat-label">Zone</span><span class="stat-val max">Fumée dense</span></div>
+        </div>
+        <p class="compat-row">Compatible : <span>Fast · Stealth</span></p>
+      </div>
+      <div class="enemy-card-body">
+        <p class="behavior">Se déplace rapidement et imprévisiblement en émettant en continu un nuage de fumée dense — même effet qu'un fumigène vanilla. La visibilité dans son sillage est quasi nulle. Sa nature Stealth la rend extrêmement difficile à localiser dans sa propre fumée. Elle ne combat pas : son rôle est de créer une zone aveugle pour les zombies qui suivent.</p>
+        <div class="mecanique">
+          <strong>Implémentation</strong>
+          Spawn continu de <code>IsoSmokeEmitter</code> (objet vanilla) sur la position de La Brume à chaque tick. La fumée disparaît naturellement après quelques secondes, mais la Brume se déplace et en génère sans cesse.
+        </div>
+        <div class="mecanique" style="margin-top:8px">
+          <strong>Contre-jeu</strong>
+          L'éliminer à distance avant qu'elle s'approche — une fois dans son nuage, la viser est très difficile. Tirer au son. Résistance faible : elle meurt vite si on la touche.
+        </div>
+      </div>
+    </div>
+
+    <!-- LE LEADER -->
+    <div class="enemy-card calamity">
+      <div class="enemy-card-top">
+        <div class="enemy-meta">
+          <span class="badge badge-tier">T6</span>
+          <span class="badge badge-calamity">Calamité</span>
+        </div>
+        <h3 class="enemy-name">Le Leader</h3>
+        <p class="enemy-tagline">Commandant de horde</p>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val lo">Très lente</span></div>
+          <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val hi">Haute</span></div>
+          <div class="stat"><span class="stat-label">Taille</span><span class="stat-val max">Exceptionnelle</span></div>
+        </div>
+        <p class="compat-row">Compatible : <span>Tank · Ranged</span></p>
+      </div>
+      <div class="enemy-card-body">
+        <p class="behavior">Masse imposante et lente autour de laquelle les zombies s'agglutinent naturellement. Dès qu'il repère un joueur, il attrape un zombie parmi ceux qui l'entourent et le projette à toute vitesse vers la cible. Le zombie impacté devient rampant au sol. Sans zombies à portée, le Leader avance et frappe au corps-à-corps pour des dégâts lourds.</p>
+        <div class="mecanique">
+          <strong>Implémentation projectile</strong>
+          Déplacement rapide du zombie cible via <code>setX()/setY()</code> par ticks. À impact (~1 tile du joueur) : dégâts + état rampant. Piste à explorer : <code>ThrowableProjectile</code> Java pour un arc visuel réel.
+        </div>
+        <div class="weakness-row">
+          <span class="weakness-pill pill-weak">Vulnérable sans escorte</span>
+          <span class="weakness-pill pill-res">Éliminer la horde d'abord</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LE COLOSSE -->
+    <div class="enemy-card calamity">
+      <div class="enemy-card-top">
+        <div class="enemy-meta">
+          <span class="badge badge-tier">T6</span>
+          <span class="badge badge-calamity">Calamité</span>
+        </div>
+        <h3 class="enemy-name">Le Centaure</h3>
+        <p class="enemy-tagline">Le sprinter inarrêtable</p>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-label">Vitesse</span><span class="stat-val max">Extrême</span></div>
+          <div class="stat"><span class="stat-label">Résistance</span><span class="stat-val hi">Haute</span></div>
+          <div class="stat"><span class="stat-label">Stagger</span><span class="stat-val lo">Nul en charge</span></div>
+        </div>
+        <p class="compat-row">Compatible : <span>Fast · Tank</span></p>
+      </div>
+      <div class="enemy-card-body">
+        <p class="behavior">Sprint à vitesse extrême vers le joueur en cycles de charge. Pendant la charge, aucun stagger ne peut l'arrêter — il traverse la horde environnante et détruit sur son passage tout obstacle cassable : fenêtres, portes, clôtures. Seuls les murs solides l'arrêtent. À l'impact : dégâts lourds et forte projection du joueur. Après chaque charge, il marque une courte pause avant de repartir.</p>
+        <div class="mecanique">
+          <strong>Destruction en charge</strong>
+          Vérification tile par tile de la trajectoire via <code>IsoThumpable</code> — destruction forcée de tout objet cassable sur le chemin. Les murs solides (non-thumpables) bloquent et cassent la charge. Permet de défoncer une base légèrement fortifiée si le joueur ne sort pas à sa rencontre.
+        </div>
+        <div class="mecanique" style="margin-top:8px">
+          <strong>Contre-jeu</strong>
+          Les phases de pause entre deux charges sont le seul moment d'attaque sûr. Esquiver sur le côté au dernier moment est la technique principale — l'Hercule ne freine pas et repart loin dans la direction de la charge.
+        </div>
+        <div class="weakness-row">
+          <span class="weakness-pill pill-weak">Pause post-charge</span>
+          <span class="weakness-pill pill-res">Murs solides = stop net</span>
+          <span class="weakness-pill pill-imm">Obstacles cassables ignorés</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ── EASTER EGG ── -->
+  <p class="sec-label">Easter Egg</p>
+  <div class="tier-header">
+    <h2 class="sec-title">Thriller</h2>
+    <span class="tier-badge-big">Événement ultra-rare</span>
+  </div>
+  <p class="sec-desc">Sur certaines routes, une chance infime de tomber sur quelque chose d'inattendu — un groupe de zombies qui danse. Inspiré d'Armageddon Riders et de Michael Jackson's Thriller.</p>
+
+  <div class="rules-grid">
+    <div class="rule-card">
+      <p class="rule-label">Déclenchement</p>
+      <p class="rule-val">Chance ultra-rare à la traversée d'un segment de route. Indépendant du système Zed+.</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Composition</p>
+      <p class="rule-val">5 à 8 zombies ordinaires en cercle · 1 zombie central en tenue orange (outfit dédié)</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Son</p>
+      <p class="rule-val">Boucle audio "Thriller" modifiée jouée en son monde (volume faible, rayon ~15 tiles). Disparaît si les zombies meurent.</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Comportement</p>
+      <p class="rule-val">Zombies en rotation lente sur eux-mêmes (<code>setFacing()</code> cyclique). Ils aggrèrent normalement si le joueur s'approche — la danse cesse.</p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Implémentation son</p>
+      <p class="rule-val">Fichier <code>.ogg</code> custom dans <code>media/sound/</code> · déclenché via <code>getSoundManager():PlayWorldSound()</code></p>
+    </div>
+    <div class="rule-card">
+      <p class="rule-label">Limites connues</p>
+      <p class="rule-val">Pas d'animation "danse" native en Lua — simulé via rotation + son. L'effet repose sur la surprise du joueur plus que sur le visuel.</p>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer>
+  <div class="footer-inner">
+    <span>ZED+ Design Bible — Project Zomboid Mod</span>
+    <span>⚑ 4 points ouverts à définir</span>
+  </div>
+</footer>
+
+<script>
+/* ── THEME TOGGLE ── */
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute('data-theme');
+  r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+}
+/* Init from system */
+if (!document.documentElement.getAttribute('data-theme')) {
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+}
+
+/* ── EVOLUTION TREE ── */
+const canvas = document.getElementById('treeCanvas');
+const ctx = canvas.getContext('2d');
+
+function getCSSVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function drawRoundRect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+function drawLabel(text, x, y, size, color, font) {
+  ctx.fillStyle = color;
+  ctx.font = `${font || '600'} ${size}px 'Barlow Condensed', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
+function drawLine(x1, y1, x2, y2, color, dash) {
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  if (dash) ctx.setLineDash([5, 4]);
+  else ctx.setLineDash([]);
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawTree() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const bg      = getCSSVar('--panel');
+  const border  = getCSSVar('--border-hi');
+  const txt1    = getCSSVar('--txt1');
+  const txt2    = getCSSVar('--txt2');
+  const txt3    = getCSSVar('--txt3');
+  const accent  = getCSSVar('--accent');
+  const fast    = getCSSVar('--fast');
+  const tank    = getCSSVar('--tank');
+  const stealth = getCSSVar('--stealth');
+  const ranged  = getCSSVar('--ranged');
+  const calamity= getCSSVar('--calamity');
+
+  // Node dimensions — narrow enough to fit 8 nodes in 900px without overlap
+  const NW = 92, NH = 38, r = 4;
+  const nodeL = (x) => x - NW/2;
+  const nodeT = (y) => y - NH/2;
+
+  // Y positions (extra height for dashed paths to T6)
+  const Y0 = 42, Y1 = 125, Y2 = 230, Y3 = 400;
+
+  // ── T5 node centers: 8 nodes, evenly spaced across 900px ──
+  // gap between nodes ~19px, left/right margin ~10px
+  const step = (900 - 20) / 8;  // ≈ 110px per slot
+  const t5x = Array.from({length:8}, (_,i) => Math.round(10 + step*(i+0.5)));
+  const [xWitch,xVol,xCol,xBoom,xSneak,xMimi,xSpit,xScout] = t5x;
+
+  // ── T3-T4 centers: midpoint of each pair ──
+  const xFast    = Math.round((xWitch + xVol)  / 2);
+  const xTank    = Math.round((xCol   + xBoom) / 2);
+  const xStealth = Math.round((xSneak + xMimi) / 2);
+  const xRanged  = Math.round((xSpit  + xScout)/ 2);
+
+  // ── T0 ──
+  const xRoot = 450;
+
+  // ── T6 calamity centers — 4 nodes, evenly spaced across 900px ──
+  // step = 900/4 = 225; centers at 112.5, 337.5, 562.5, 787.5
+  const xHote = 113, xBrume = 338, xLead = 563, xColosse = 788;
+
+  // ─── Lines T0 → T3-T4 ───
+  [xFast, xTank, xStealth, xRanged].forEach(x => {
+    drawLine(xRoot, Y0+NH/2, x, Y1-NH/2, border);
+  });
+
+  // ─── Lines T3-T4 → T5 ───
+  [[xFast,[xWitch,xVol]],[xTank,[xCol,xBoom]],[xStealth,[xSneak,xMimi]],[xRanged,[xSpit,xScout]]]
+    .forEach(([px,children]) => {
+      children.forEach(cx2 => drawLine(px, Y1+NH/2, cx2, Y2-NH/2, border));
+    });
+
+  // ─── Dashed lines T3-T4 → T6 — ONLY compatible paths ───
+  // L'Hôte    ← Stealth + Ranged
+  // La Brume  ← Fast    + Stealth
+  // Le Leader ← Tank    + Ranged
+  // Le Centaure ← Fast    + Tank
+  const dc = calamity;
+  [[xStealth, xHote],[xRanged, xHote],
+   [xFast, xBrume],[xStealth, xBrume],
+   [xTank, xLead],[xRanged, xLead],
+   [xFast, xColosse],[xTank, xColosse]
+  ].forEach(([x1,x2]) => {
+    drawLine(x1, Y1+NH/2+2, x2, Y3-NH/2-2, dc, true);
+  });
+
+  // ─── Draw T0 node ───
+  drawRoundRect(nodeL(xRoot), nodeT(Y0), NW, NH, r, bg, accent);
+  ctx.font='600 10px Barlow Condensed,sans-serif';
+  ctx.fillStyle=txt3; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('T1–T2', xRoot, Y0-6);
+  drawLabel('Zed+', xRoot, Y0+5, 16, accent);
+
+  // ─── T3-T4 nodes ───
+  [{x:xFast,c:fast,l:'Fast'},{x:xTank,c:tank,l:'Tank'},
+   {x:xStealth,c:stealth,l:'Stealth'},{x:xRanged,c:ranged,l:'Ranged'}]
+  .forEach(s => {
+    drawRoundRect(nodeL(s.x), nodeT(Y1), NW, NH, r, bg, s.c);
+    ctx.font='600 10px Barlow Condensed,sans-serif';
+    ctx.fillStyle=txt3; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('T3–T4', s.x, Y1-6);
+    drawLabel(s.l, s.x, Y1+5, 16, s.c);
+  });
+
+  // ─── T5 nodes ───
+  [{x:xWitch,l:'Witch',c:fast},{x:xVol,l:'Volatile',c:fast},
+   {x:xCol,l:'Colosse',c:tank},{x:xBoom,l:'Boomer',c:tank},
+   {x:xSneak,l:'Sneaker',c:stealth},{x:xMimi,l:'Mimique',c:stealth},
+   {x:xSpit,l:'Spitter',c:ranged},{x:xScout,l:'Scout',c:ranged}]
+  .forEach(n => {
+    drawRoundRect(nodeL(n.x), nodeT(Y2), NW, NH, r, bg, n.c);
+    ctx.font='600 10px Barlow Condensed,sans-serif';
+    ctx.fillStyle=txt3; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('T5', n.x, Y2-6);
+    drawLabel(n.l, n.x, Y2+5, 13, n.c);
+  });
+
+  // ─── T6 calamity nodes ───
+  [{x:xHote,l:"L'Hôte"},{x:xBrume,l:'La Brume'},{x:xLead,l:'Le Leader'},{x:xColosse,l:"Le Centaure"}]
+  .forEach(n => {
+    drawRoundRect(nodeL(n.x), nodeT(Y3), NW, NH, r, bg, calamity);
+    ctx.font='600 9px Barlow Condensed,sans-serif';
+    ctx.fillStyle=txt3; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('T6 — CALAMITÉ', n.x, Y3-7);
+    drawLabel(n.l, n.x, Y3+6, 13, calamity);
+  });
+
+  // ─── Legend ───
+  // Line 1 — solid border : T4 → T5 (survie 4 jours)
+  ctx.setLineDash([]);
+  ctx.strokeStyle=border; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(14,H-26); ctx.lineTo(40,H-26); ctx.stroke();
+  ctx.font='400 11px Barlow Condensed,sans-serif';
+  ctx.fillStyle=txt3; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('T4 → T5 : après 4 jours de survie', 47, H-26);
+  // Line 2 — dashed calamity : T4 → T6 (conditions zone)
+  ctx.setLineDash([5,4]);
+  ctx.strokeStyle=calamity; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(14,H-8); ctx.lineTo(40,H-8); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillText('T4 → T6 : Calamité — conditions de zone requises', 47, H-8);
+}
+
+drawTree();
+
+// Redraw on theme change
+new MutationObserver(drawTree).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+</script>
