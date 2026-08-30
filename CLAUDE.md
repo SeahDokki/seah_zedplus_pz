@@ -165,10 +165,10 @@ is missing (older save, partial server override). The `DEFAULTS` table in `SZedP
 with the `default =` lines in the options file.
 
 Adding an option means touching four places: the options file, the `DEFAULTS` table, and the label plus tooltip in
-all four `Sandbox_<LANG>.txt` files.
+all four `Translate/<LANG>/Sandbox.json` files.
 
-`scratchpad/i18ncheck.py` verifies that the four locales define identical keys and that every option and page has a
-translation; `scratchpad/luacheck.py` does a rough balance check on the Lua files.
+`tools/i18ncheck.py` verifies that the four locales define identical keys and that every option and page has a
+translation; `tools/luacheck.py` does a rough balance check on the Lua files.
 
 ## Engine gotchas (learned by breaking things)
 
@@ -183,10 +183,208 @@ a method - `hearing` is an `int` field with no setter, so per-zombie hearing can
 threw at runtime. Verify a signature before building on it: `scratchpad/methodsig.py <file.class> <name>` parses the
 constant pool and prints real method descriptors.
 
+**Lua cannot read or write Java fields.** Only methods are exposed. `IsoZombie.hearing` and `IsoZombie.sight` are
+`public int` with no setter - they are what the Hearing and Sight sandbox options drive, and they are unreachable
+from Lua in both directions (verified in game: the write threw, the read returned nil). A public field is NOT a
+usable API here; if there is no method, there is no access. Where perception matters, drive the outcome instead -
+`setTarget()`, `addAggro()` and `clearAggroList()` are public and give exact distances rather than three levels.
+
+**Sandbox options cannot change during a game.** There is no engine event for "the sandbox options changed", and in
+single player there is no in-game editor writing back to `SandboxVars` either - so re-reading them is not enough, the
+values genuinely do not move until a restart. `SZedPlus.Config.reread(name)` re-reads one option now (useful on a
+server, where an admin can change them), and a periodic `refresh()` on `EveryTenMinutes` catches that case. But
+anything a player expects to toggle and see immediately needs a runtime override that takes precedence over the
+sandbox value - `SZedPlus.AcidRender.isOn()/toggle()` is the pattern, driven from the debug menu's Display submenu.
+
+**A zombie does not wear its clothes.** `getWornItems()` on an `IsoZombie` is empty - `IsoZombie` has
+`isUsingWornItems()` precisely because the normal answer is no. It carries `ItemVisual`s, and real `InventoryItem`s
+only materialise when the corpse is built. Every loop written against `getWornItems()` therefore ran zero times and
+reported success: the Boomer's two variants looked identical, and its blast logged "0 destroyed, 0 ruined" while
+leaving the suit pristine. Iterate `zombie:getItemVisuals()` instead (`setTint`, `setDirt`, `getItemType`), or use the
+character-level calls below.
+
+**Holes and blood go on the character, not on the visual.** `HumanVisual` has `getHole` but *no* `setHole` - the
+setter is on `ItemVisual`, one per garment - so `zombie:getHumanVisual():setHole(part)` is a silent no-op, and
+`HumanVisual:setBlood()` paints the skin, which is invisible under a hazmat suit. The working calls are
+`IsoGameCharacter:addHole(BloodBodyPartType)` and `addBlood(part, true, true, false)`; they find the covering garment
+themselves, carry over to the looted item, and are what vanilla's own `DamageModelDefinitions.OnHitZombie` uses.
+Call them ~3x per part, as vanilla does - one call barely shows. A hole asked for outside the garment's declared
+`BloodLocation` regions is dropped silently, so check the item script before picking parts.
+
+**`OnHitZombie` passes the zombie first, not the attacker.** The signature is `(zombie, wielder, bodyPart, weapon)`.
+Getting the first two the wrong way round means the guard asks `isZedPlus()` about the player, returns false, and
+every hit is dropped on the first line - with no error, and no log line to show the handler ever ran. Vanilla's
+handler in `media/lua/shared/Definitions/DamageModelDefinitions.lua` is the reference.
+
+**Do not project world coordinates by hand.** Drawing a ground effect with `isoToScreenX/Y` + `getRenderer():render()`
+means reproducing the engine's zoom *and* ground-depth handling; getting either slightly wrong shows up as the
+texture drifting across the ground as the camera zooms, and no amount of tweaking a Z or pixel offset fixes it.
+`getWorldMarkers():addGridSquareMarker(square, r, g, b, useGroundDepth, size)` is the engine doing it - placed once,
+correct at every zoom.
+
+The textured overload takes a **bare name**, and the file has to be in one exact folder.
+`WorldMarkers$GridSquareMarker.init` builds its path from a string-concat recipe sitting in the class constant pool
+in full - `'media/textures/highlights/.png'` - so it does
+`getSharedTexture("media/textures/highlights/" .. name .. ".png")`, defaulting to `"circle_center"`. No directory and
+no extension in the name, and the PNG must be in `media/textures/highlights/` (a mod's copy of that folder merges
+with the game's). Both the base and the overlay name are looked up, so passing `nil` for the overlay throws too.
+
+**Draw a ground area as one marker per tile, not one big marker.** A single large marker has to be sized in tiles from
+a radius (getting the diameter conversion below right), needs artwork authored for the whole footprint, and at more
+than a few tiles across is clipped at chunk boundaries - which looks like the texture cropping as the camera moves.
+Per tile, all three vanish: `size = 1.0` is one tile by definition, the drawn shape *is* the damage footprint because
+the same test computes both, and a one-tile quad cannot straddle a chunk. Draw each tile slightly over 1.0 (~1.4) so
+neighbours overlap into one shape instead of a grid of blobs.
+
+**A marker's `size` is a diameter in tiles, not a radius.** `GridSquareMarker` sets
+`scaleRatio = 64 * Core.tileScale / texture.getWidth()` and draws the sprite at `width * scaleRatio * size`, which
+comes to `64 * tileScale * size` - and `64 * tileScale` is exactly one tile. So `size = 1.0` spans one tile, and a
+circle of radius r needs `2r`. Passing a radius straight through draws every zone at half the width it covers.
+
+**Marker artwork is 512x256, not square.** That 2:1 ratio is the isometric footprint of a ground tile - a top-down
+circle reads as an ellipse twice as wide as tall - and every vanilla marker texture has it. A square 256x256 texture
+drew a square, *and* drew it at double size, because `init` derives its scale from `texture.getWidth()`. Producing one
+from a top-down image is a horizontal stretch to 512x256, which is that projection.
+
+**And it carries no colour: white RGB everywhere, shape in the alpha.** `circle_center.png` is white in 100% of its
+transparent pixels, and the marker's `r,g,b` supplies the colour. Ours had black RGB under its transparent areas -
+the renderer does not fully respect alpha there, so that black filled the whole quad and the pool drew as a solid
+dark diamond. Beware the resize: `Image.resize()` on an RGBA image puts the black back, because Pillow premultiplies
+by alpha to resample and un-premultiplies afterwards, and that division yields 0 wherever alpha lands on 0. Resize
+the alpha channel alone as an `L` image and merge it onto a fresh white RGB.
+
+Two guesses were burned here before reading that recipe, and both failed the same way: **the check did not match what
+the engine does**. Handed an absolute disk path, `getSharedTexture()` returns a texture quite happily, so the name
+looked valid - and the marker still threw `NullPointerException: Cannot invoke "Texture.getWidth()"` from inside
+`addGridSquareMarker`, because that is not the string `init` looks up. Verify a name by performing the engine's own
+lookup, not one that merely resembles it; `nameWorks()` in `SZedPlus_AcidRender` builds the same path `init` does.
+Names are a flat global namespace shared with every mod, so prefix the file (`SZedPlus_AcidPool.png`).
+
+`tools/constval.py` prints the `ConstantValue` of static final fields, which is how the perception and speed
+constants were read rather than guessed (`HEARING_PINPOINT=1 NORMAL=2 POOR=3`, `SPEED_SPRINTER=1 FAST_SHAMBLER=2
+SHAMBLER=3`).
+
 **Confirmed signatures** (B42.20): `getHealth()F` and `setHealth(F)V` on `IsoGameCharacter`; `getWalkType()` returns
 a `String` and `setWalkType(String)`, `setSpeedTypeFromWalkType()`, `getSpeedType()I` on `IsoZombie`. Walk type
 values, from the engine's own doc: "slow1-3 if it's a shambler, or sprint1-5 if it's a sprinter" - the ordering
 within a family is inferred, not documented.
+
+## Zombie scaling: investigated, not possible (B42.20)
+
+Making a zombie physically bigger or smaller cannot be done from Lua. This was chased down properly; the notes are
+here so it is not re-investigated from scratch.
+
+**What was tried and what happened**
+
+- `media/scripts/models.txt` declaring bodies with `scale = 3.5`. The file **loads** - `getScriptManager():
+  getModelScript("Base.SZedPlusBody_F_350")` returns non-nil in game - so the format and naming are right.
+- `HumanVisual.setForceModelScript(name)` + `resetModelNextFrame()`. No visible effect. Not even
+  `Base.Female_Skeleton`, a vanilla model, changes the zombie.
+- Searching all 23,740 classes in the jar: `forceModelScript` is referenced by **exactly one** class, `HumanVisual`
+  itself, for its own setter. No rendering code reads it. It is a dead field.
+
+**Why it cannot work**
+
+`ModelScript.scale` is real (public float, and the parser accepts it on a model block), but the code that applies it
+is `ModelInstance.applyModelScriptScale()`. A character's body `ModelInstance` is only reachable through public
+fields (`hair`, `beard`, `primaryHandModel`, …), and Lua cannot read Java fields - the same wall as
+`IsoZombie.hearing`. `IsoAnimal` does use per-model scale, so scaling exists in the engine, but only where the
+engine itself sets it up: an animal's size comes from its species' model, not from a per-instance setter.
+
+**A rescaled mesh would not help either.** The meshes are `media/models_X/Skinned/MaleBody.x`, DirectX `.x` in text
+mode - editable, and Blender can handle them with a third-party importer. But producing the mesh is only half the
+job: there is no API to assign a model to one zombie, which is precisely what the point above establishes. A custom
+mesh could only be swapped in globally, resizing every zombie in the game.
+
+**If this is revisited**, `SZedPlus.Debug.tryModel("Base.Female_Skeleton")` re-runs the decisive test in one line:
+if a zombie turns into a skeleton, the engine has started honouring model overrides and the door is open again.
+
+## Custom creatures: decided direction
+
+**T5 forms and T6 Calamities will be custom creatures built on B42's animal system, inside this mod** - not a
+separate one. Reimplementing the behaviour is accepted, and wanted: it buys full control over how a Calamity acts,
+which a zombie's fixed AI would never allow. Ordinary Zed+ (T1-T4) stay real zombies.
+
+This is what puts a T-Rex in the game in the Workshop dinosaur mod (id 3784875732, mod id `VRaptor`, installed
+locally and read for reference). Its own FAQ: "this uses animals so is completely separate".
+
+**The shape of it:**
+
+```
+// media/scripts/<Name>_Models.txt
+module SZedPlus
+{
+    animationsMesh Leader { meshFile = SZedPlus/Leader, keepMeshAnimations = true, }
+    model Leader { mesh = SZedPlus/Leader, animationsMesh = SZedPlus.Leader,
+                   shader = animalEffect, static = false, scale = 1.0, }
+}
+```
+
+A species is a Lua table on `AnimalDefinitions`: `model`, `minSize`/`maxSize`, `animalSize` (gameplay footprint,
+0.55 raptor vs 1.8 T-Rex), `collisionSize`, `spottingDist`, plus `attackBack` / `knockdownAttack` /
+`canDoLaceration` for aggression. `scale` on the model script IS honoured for animals - that mod uses values from
+0.001875 to 12.5 to normalise imported meshes. `keepMeshAnimations = true` keeps animations inside the mesh, so no
+PZ animset needs authoring.
+
+Meshes will come from free 3D assets (itch.io and similar) matching the game's style. Not AI-generated: the licence
+forbids it, and it is an asset either way.
+
+**Multiplayer: learn from their mistake.** That mod warns it desyncs, and the reason is in its code -
+`Dino_MP_Server.lua` broadcasts every creature's position to every player **every 50 ms**, with a sequence number
+and timestamp to patch over reordering:
+
+```lua
+local DINO_ACTIVE_INTERVAL_MS = 50
+args = { id, seq, stamp, x, y, z, dirX, dirY, moving, running, speed }
+sendServerCommand(player, MODULE, MOVE_COMMAND, args)
+```
+
+Hand-streaming position from Lua cannot be made reliable. The rule for this mod: **never send positions**. Move
+creatures with `pathToLocation()` and let the engine replicate them - animals have a `getOnlineID()`, so the network
+already knows about them - and send only *decisions* (state changes, target acquired, attack started), rarely, and
+idempotently. If a behaviour cannot be expressed that way, prefer a weaker behaviour to a desynced one.
+
+Single player is the priority (multiplayer is a small share of players) but it must not be knowingly broken.
+
+## Custom creatures: where it stalled (2026-08-29)
+
+The plumbing works. `IsoAnimal.new()` spawns a registered species, the model
+loads, the species is accepted. What does not work is the animation: the engine
+throws, every frame,
+
+```
+java.lang.ArrayIndexOutOfBoundsException: Index 60 out of bounds for length 60
+   at AnimationTrack.get(AnimationTrack.java:143)
+   at AnimationPlayer.updateBoneAnimationTransform_Internal
+```
+
+and the mesh renders as geometry stretched to infinity.
+
+**The key observation, and the one to start from if this is picked up again:**
+the number 60 never changed. The Bellwretch skin was taken from 61 joints down
+to 53, and the error still said "60 out of bounds for length 60". Whatever
+sizes that track to 60, **it is not our model**. Chasing the model's structure
+was therefore the wrong thread, in hindsight.
+
+Ruled out along the way, each verified rather than assumed:
+
+- The species definition. Cloning the deer is what the dinosaur mod does too.
+- The mesh structure. Five differences against a model that imports cleanly
+  (the dinosaur mod's Velociraptor) were found and fixed by `tools/fixglb.py`:
+  no `skeleton` root, mesh node parented to the armature, skeleton root under an
+  armature carrying a 0.2576 scale, two primitives instead of one, and eight
+  trailing joints no vertex is weighted to.
+- The file format. GLB and FBX fail identically.
+- The deer's skeleton (29 bones) and the human body are not the source of 60.
+
+**Where to look next**: what builds an AnimationTrack of exactly 60. Vanilla
+animals declare `animationsMesh` as a *separate* file from `mesh`
+(`model DeerDoe { mesh = Skinned/DeerDoe, animationsMesh = Deer_Doe }`) while
+ours points `animationsMesh` at the same mesh, relying on
+`keepMeshAnimations = true`. That asymmetry was not chased down and is the most
+promising remaining lead.
+
+The T5 forms are unaffected: they are zombies, and they work.
 
 ## Tier modifiers
 

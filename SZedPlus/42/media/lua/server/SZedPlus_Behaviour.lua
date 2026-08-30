@@ -7,9 +7,11 @@
 ---    that hook silently loses them. So classification still happens there, but
 ---    the stats are queued and applied on a later tick.
 ---
---- 2. IsoZombie has a `hearing` field but no setHearing() method, so per-zombie
----    hearing cannot be changed from Lua. The Stealth path's short aggro range
----    needs a different mechanism - see the note at the bottom.
+--- 2. Perception CANNOT be set per zombie. `hearing` and `sight` are public
+---    int fields on IsoZombie with no setters, and Project Zomboid's Lua
+---    binding does not expose Java fields at all - reading and writing both
+---    fail. Verified in game. SZedPlus_Senses drives the aggro directly
+---    instead, which is the outcome those levels would have produced.
 ---
 --- Idempotent by construction: the zombie's original health and walk type are
 --- captured once into modData, and modifiers are always computed from those, so
@@ -29,10 +31,16 @@ local Keys = SZedPlus.Keys
 local pending = {}
 local pendingCount = 0
 
---- Ticks to wait before applying. One is enough for the engine to finish the
---- zombie, but a small margin costs nothing and covers slower paths such as a
---- chunk streaming in.
-local APPLY_DELAY_TICKS = 2
+--- Ticks to wait before applying stats. One is enough for the engine to finish
+--- the zombie, but a small margin costs nothing and covers slower paths such as
+--- a chunk streaming in.
+local STATS_DELAY_TICKS = 2
+
+--- Clothing waits considerably longer. The engine dresses a zombie well after
+--- creation - long after the health pass - and anything worn before that is
+--- replaced. SZedPlus_Appearance.prepare() already tells it not to, this is the
+--- belt to that pair of braces.
+local OUTFIT_DELAY_TICKS = 15
 
 -- --------------------------------------------------------------- capture --
 
@@ -45,6 +53,111 @@ local function captureBaseline(zombie, data)
     end
     if data[Keys.baseWalkType] == nil then
         data[Keys.baseWalkType] = zombie:getWalkType()
+    end
+end
+
+-- ----------------------------------------------------------------- speed --
+
+--- The usable speed scale, resolved once: { walkType, speedType } slowest
+--- first, plus a lookup from walk type back to its position.
+local scale = nil
+local scaleIndex = nil
+
+--- Which speed family a walk type belongs to, per the engine.
+---
+--- getSpeedTypeFromWalkType is STATIC, so it is called on the class, not on an
+--- instance: `zombie:getSpeedTypeFromWalkType(x)` passes the zombie as the
+--- first argument and throws. Checked with tools/methodsig.py, which prints
+--- access modifiers alongside descriptors.
+local function speedTypeOf(walkType)
+    local ok, speedType = pcall(IsoZombie.getSpeedTypeFromWalkType, walkType)
+    if ok then return speedType end
+    return nil
+end
+
+--- Build the scale, keeping only the entries the engine actually recognises.
+---
+--- Hardcoding the list would mean trusting that walk1-3 exists on every build;
+--- probing it means an entry the game rejects is simply dropped, and the shift
+--- still works over what remains.
+local function getScale()
+    if scale ~= nil then return scale end
+
+    scale = {}
+    scaleIndex = {}
+    for _, walkType in ipairs(SZedPlus.Tiers.WALK_SCALE) do
+        local speedType = speedTypeOf(walkType)
+        if speedType ~= nil then
+            scale[#scale + 1] = { walkType = walkType, speedType = speedType }
+            scaleIndex[walkType] = #scale
+        end
+    end
+
+    local names = {}
+    for _, entry in ipairs(scale) do
+        names[#names + 1] = string.format("%s(%d)", entry.walkType, entry.speedType)
+    end
+    SZedPlus.log("speed scale: %s", table.concat(names, " "))
+
+    return scale
+end
+
+--- First position on the scale that is at least as fast as `speedType`.
+local function firstPositionAtLeast(speedType)
+    for index, entry in ipairs(getScale()) do
+        if entry.speedType <= speedType then return index end
+    end
+    return nil
+end
+
+--- Last position on the scale that is at most as fast as `speedType`.
+local function lastPositionAtMost(speedType)
+    local found = nil
+    for index, entry in ipairs(getScale()) do
+        if entry.speedType >= speedType then found = index end
+    end
+    return found
+end
+
+--- Apply the path's speed rule.
+---
+--- Steps first, then the bound: the step expresses "faster than the world",
+--- the bound expresses "this form is always a sprinter". Applying the bound
+--- last means it wins when the two disagree.
+local function applySpeed(zombie, data, stage)
+    local rule = SZedPlus.Tiers.getSpeedRule(stage, data[Keys.path])
+    if rule == nil then return end
+
+    local baseWalkType = data[Keys.baseWalkType]
+    if baseWalkType == nil then return end
+
+    local entries = getScale()
+    local position = scaleIndex[baseWalkType]
+    if position == nil then
+        -- Unknown walk type: leave the zombie alone rather than guess.
+        SZedPlus.log("unknown walk type '%s', speed rule skipped", tostring(baseWalkType))
+        return
+    end
+
+    if rule.steps then
+        position = position + rule.steps
+        if position < 1 then position = 1 end
+        if position > #entries then position = #entries end
+    end
+
+    -- A lower speedType is faster, so a floor caps the number and a ceiling
+    -- raises it.
+    if rule.floor and entries[position].speedType > rule.floor then
+        position = firstPositionAtLeast(rule.floor) or position
+    end
+    if rule.ceiling and entries[position].speedType < rule.ceiling then
+        position = lastPositionAtMost(rule.ceiling) or position
+    end
+
+    local walkType = entries[position].walkType
+    if walkType ~= zombie:getWalkType() then
+        zombie:setWalkType(walkType)
+        zombie:setSpeedTypeFromWalkType()
     end
 end
 
@@ -70,27 +183,23 @@ function SZedPlus.Behaviour.apply(zombie)
         zombie:setHealth(baseHealth * modifiers.health)
     end
 
-    -- Walk speed, shifted along the scale from the captured baseline so the
-    -- world's own speed setting is preserved.
-    local baseWalkType = data[Keys.baseWalkType]
-    if baseWalkType and modifiers.speedSteps ~= 0 then
-        local walkType = SZedPlus.Tiers.shiftWalkType(baseWalkType, modifiers.speedSteps)
-        if walkType and walkType ~= zombie:getWalkType() then
-            zombie:setWalkType(walkType)
-            zombie:setSpeedTypeFromWalkType()
-        end
-    end
+    applySpeed(zombie, data, stage)
 
     return true
 end
 
 -- ----------------------------------------------------------------- queue --
 
---- Ask for this zombie's stats to be applied shortly.
+--- Ask for this zombie's stats and clothing to be applied shortly.
+--- Two entries, because the two need very different delays.
 function SZedPlus.Behaviour.queue(zombie)
     if zombie == nil then return end
+
     pendingCount = pendingCount + 1
-    pending[pendingCount] = { zombie = zombie, ticks = APPLY_DELAY_TICKS }
+    pending[pendingCount] = { zombie = zombie, ticks = STATS_DELAY_TICKS, what = "stats" }
+
+    pendingCount = pendingCount + 1
+    pending[pendingCount] = { zombie = zombie, ticks = OUTFIT_DELAY_TICKS, what = "outfit" }
 end
 
 --- Drain the queue. Cheap when empty, which is the normal case.
@@ -111,7 +220,11 @@ local function onTick()
             -- The zombie may have been removed while waiting.
             local zombie = entry.zombie
             if zombie:getSquare() ~= nil then
-                SZedPlus.Behaviour.apply(zombie)
+                if entry.what == "outfit" then
+                    SZedPlus.Appearance.apply(zombie)
+                else
+                    SZedPlus.Behaviour.apply(zombie)
+                end
             end
         end
     end
@@ -144,12 +257,42 @@ function SZedPlus.Behaviour.readStats(zombie)
         speedType = zombie:getSpeedType(),
         crawling = zombie:isCrawling(),
         knockedDown = zombie:isKnockedDown(),
+        hasTarget = zombie:getTarget() ~= nil,
     }
 
     if stats.stage then
         local modifiers = SZedPlus.Tiers.resolve(stats.stage, stats.path)
         stats.healthMultiplier = modifiers.health
-        stats.speedSteps = modifiers.speedSteps
+
+        local rule = SZedPlus.Tiers.getSpeedRule(stats.stage, stats.path)
+        if rule then
+            local parts = {}
+            if rule.steps then parts[#parts + 1] = string.format("%+d", rule.steps) end
+            if rule.floor then parts[#parts + 1] = "floor " .. rule.floor end
+            if rule.ceiling then parts[#parts + 1] = "ceiling " .. rule.ceiling end
+            stats.speedRule = table.concat(parts, ", ")
+
+            -- Whether the rule is satisfied as things stand. Lets the panel
+            -- tell "nothing left to do" apart from "could not be done".
+            local current = stats.speedType
+            stats.speedRuleMet = current ~= nil
+                and not (rule.floor and current > rule.floor)
+                and not (rule.ceiling and current < rule.ceiling)
+        end
+
+        local formRule = SZedPlus.Forms.get(stats.form)
+        if formRule then
+            stats.formMode = formRule.mode
+            stats.formTriggered = data[Keys.formTriggered] == true
+            stats.formFuse = data[Keys.formFuse]
+            stats.formBottle = data[Keys.formBottle] == true
+        end
+
+        local senses = SZedPlus.Tiers.getSenseRule(stats.stage, stats.path)
+        if senses then
+            stats.senseMode = senses.mode
+            stats.senseRadius = senses.aggroRadius
+        end
         -- What the health should be. Shown next to the live value so a mismatch
         -- is visible rather than something to work out by hand.
         if stats.baseHealth then
@@ -159,9 +302,3 @@ function SZedPlus.Behaviour.readStats(zombie)
 
     return stats
 end
-
--- NOTE (Stealth path): "only aggros from very close" is not implemented.
--- IsoZombie exposes `hearing` as a field with no setter, so it cannot be
--- lowered per zombie from Lua. The options are to clear the zombie's target
--- while the player is beyond a threshold, or to drive it through vision
--- instead. To be settled when the Stealth behaviour is built.

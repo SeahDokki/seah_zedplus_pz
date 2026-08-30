@@ -37,8 +37,8 @@ Différenciation uniquement comportementale. Apparence identique à un zombie no
 |---|---|
 | **Fast** | Plus rapide que la normale, moins résistant |
 | **Tank** | Nettement plus lent, bien plus résistant |
-| **Stealth** | N'aggro que de très près, reste allongé ou immobile dans les coins |
-| **Ranged** | Dégage un gaz de putréfaction (corpse sickness inhabituelle dans la zone) |
+| **Stealth** | Sens émoussés : n'aggro que de très près, et oublie une cible qui s'éloigne |
+| **Ranged** | Sens aiguisés : repère le joueur bien au-delà de la portée normale |
 
 ---
 
@@ -72,9 +72,10 @@ Tenue et comportement distincts. 2 options par voie, choisies aléatoirement.
 
 ### Voie Stealth
 
-**Sneaker**
-- Vitesse modérée/rapide · Résistance normale
-- S'efforce de rester dans le dos du joueur. Aucun grognement — uniquement une respiration haletante détectable à l'écoute.
+**Le Traqueur** *(remplace le Sneaker)*
+- Vitesse très rapide · Résistance normale · Se fige sous le regard
+- Reste parfaitement immobile tant que le joueur le regarde, et fonce dès qu'il se détourne. On ne le voit jamais bouger, seulement plus près qu'avant. Acculé à courte distance, il abandonne la ruse et charge.
+- Le Sneaker d'origine devait contourner le joueur : impossible, un zombie PZ avec une cible marche droit dessus et écrase tout chemin imposé, et sans cible il se désintéresse. Immobiliser fonctionne, d'où cette forme qui interrompt l'IA au lieu de la combattre.
 
 **Mimique**
 - Vitesse rampant · Résistance normale · Réveil : fouille ou contact

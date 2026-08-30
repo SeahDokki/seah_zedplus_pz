@@ -126,3 +126,69 @@ function SZedPlus.Debug.makeNearestZedPlus(stage, path)
         nearestDistance, stage, tostring(data[SZedPlus.Keys.path])))
     return nearest
 end
+
+-- --------------------------------------------------------- model probing --
+
+--- Force a model script onto the nearest zombie, to find out whether
+--- setForceModelScript works at all on this build.
+---
+--- Two very different failures look identical in game - the model script not
+--- being found, and the model changing but `scale` being ignored for animated
+--- characters. Passing a visibly different vanilla model separates them:
+---
+---   SZedPlus.Debug.tryModel("Base.Female_Skeleton")  -- turns into a skeleton?
+---   SZedPlus.Debug.tryModel("Base.SZedPlusBody_F_350")
+---
+--- If the skeleton works and ours does not, the model swap is fine and the
+--- problem is our script. If neither works, the swap itself is unavailable.
+function SZedPlus.Debug.tryModel(name)
+    warnIfRemoteClient()
+
+    local nearest, nearestDistance = nil, math.huge
+    forEachZombieNear(30, function(zombie, distance)
+        if distance < nearestDistance then
+            nearest, nearestDistance = zombie, distance
+        end
+    end)
+
+    if not nearest then
+        print("[SZedPlus] no zombie within 30 tiles")
+        return false
+    end
+
+    if getScriptManager():getModelScript(name) == nil then
+        print("[SZedPlus] model script NOT FOUND: " .. tostring(name))
+        return false
+    end
+    print("[SZedPlus] model script found: " .. tostring(name))
+
+    local ok, err = pcall(function()
+        nearest:getHumanVisual():setForceModelScript(name)
+        nearest:resetModelNextFrame()
+    end)
+    if not ok then
+        print("[SZedPlus] setForceModelScript threw: " .. tostring(err))
+        return false
+    end
+
+    print(string.format("[SZedPlus] applied '%s' to a zombie at %.1f tiles",
+        tostring(name), nearestDistance))
+    return true
+end
+
+--- Report what the engine actually built for a model script.
+---
+---   SZedPlus.Debug.checkModel("SZedPlus.Bellwretch")
+---   SZedPlus.Debug.checkModel("SZedPlus.BellwretchStatic")
+---
+--- Says whether the script resolved at all, which separates "the file is not
+--- loaded" from "the file loaded and the rig is wrong".
+function SZedPlus.Debug.checkModel(name)
+    local script = getScriptManager():getModelScript(name)
+    if script == nil then
+        print("[SZedPlus] model script NOT FOUND: " .. tostring(name))
+        return false
+    end
+    print("[SZedPlus] model script found: " .. tostring(name))
+    return true
+end

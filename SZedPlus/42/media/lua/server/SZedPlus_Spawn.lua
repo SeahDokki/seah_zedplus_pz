@@ -50,9 +50,15 @@ function SZedPlus.Spawn.applySpec(zombie, spec)
         data[Keys.t4SpawnDay] = day
     end
 
-    -- Queued, not applied: the engine is still building this zombie and would
-    -- overwrite its health as soon as this hook returns.
+    -- Appearance is claimed immediately: the engine dresses the zombie on a
+    -- later tick and would replace anything put on before that.
+    SZedPlus.Appearance.prepare(zombie)
+
+    -- Stats are queued instead: the engine overwrites health as soon as this
+    -- hook returns.
     SZedPlus.Behaviour.queue(zombie)
+    SZedPlus.Senses.track(zombie)
+    SZedPlus.FormBehaviour.track(zombie)
 
     SZedPlus.log("applied %s at day %d", SZedPlus.describe(zombie), day)
     return true
@@ -114,6 +120,8 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
     if SZedPlus.isInitialized(zombie) then
         if SZedPlus.isZedPlus(zombie) then
             SZedPlus.Behaviour.queue(zombie)
+            SZedPlus.Senses.track(zombie)
+            SZedPlus.FormBehaviour.track(zombie)
         end
         return
     end

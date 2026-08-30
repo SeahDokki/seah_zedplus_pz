@@ -42,6 +42,7 @@ local function request(playerNum, command, args)
         inspect = handlers.inspect,
         removeNearby = handlers.removeNearby,
         getStats = handlers.sendStats,
+        spawnCreature = handlers.spawnCreature,
     }
 
     local handler = direct[command]
@@ -64,6 +65,11 @@ function SZedPlus.DebugMenu.onRemoveNearby(playerNum)
     request(playerNum, "removeNearby")
 end
 
+--- Spawn a ZED+ creature (animal species) rather than a zombie.
+function SZedPlus.DebugMenu.onSpawnCreature(playerNum, spec)
+    request(playerNum, "spawnCreature", spec)
+end
+
 --- Ask for the stats of a zombie, identified by where it stands.
 function SZedPlus.DebugMenu.onGetStats(playerNum, target)
     request(playerNum, "getStats", target)
@@ -79,7 +85,8 @@ local TIERS = {
     { stage = 3, label = "IGUI_SZedPlus_Tier3", children = "paths" },
     { stage = 4, label = "IGUI_SZedPlus_Tier4", children = "paths" },
     { stage = 5, label = "IGUI_SZedPlus_Tier5", children = "forms" },
-    { stage = 6, label = "IGUI_SZedPlus_Tier6", children = "calamities" },
+    -- T6 is absent on purpose: Calamities are creatures, not zombies, and live
+    -- under the Creatures branch.
 }
 
 local PATHS = {
@@ -94,17 +101,10 @@ local FORMS = {
     { key = "volatile", path = "fast",    label = "IGUI_SZedPlus_FormVolatile" },
     { key = "colossus", path = "tank",    label = "IGUI_SZedPlus_FormColossus" },
     { key = "boomer",   path = "tank",    label = "IGUI_SZedPlus_FormBoomer" },
-    { key = "sneaker",  path = "stealth", label = "IGUI_SZedPlus_FormSneaker" },
+    { key = "stalker",  path = "stealth", label = "IGUI_SZedPlus_FormSneaker" },
     { key = "mimic",    path = "stealth", label = "IGUI_SZedPlus_FormMimic" },
     { key = "spitter",  path = "ranged",  label = "IGUI_SZedPlus_FormSpitter" },
     { key = "scout",    path = "ranged",  label = "IGUI_SZedPlus_FormScout" },
-}
-
-local CALAMITIES = {
-    { key = "host",    label = "IGUI_SZedPlus_CalamityHost" },
-    { key = "mist",    label = "IGUI_SZedPlus_CalamityMist" },
-    { key = "leader",  label = "IGUI_SZedPlus_CalamityLeader" },
-    { key = "centaur", label = "IGUI_SZedPlus_CalamityCentaur" },
 }
 
 --- Add one leaf entry that spawns `spec`.
@@ -126,11 +126,6 @@ local function addTierChildren(parentMenu, option, playerNum, tier)
         for _, entry in ipairs(FORMS) do
             addSpawnOption(submenu, playerNum, entry.label,
                 { stage = tier.stage, path = entry.path, form = entry.key })
-        end
-    elseif tier.children == "calamities" then
-        for _, entry in ipairs(CALAMITIES) do
-            addSpawnOption(submenu, playerNum, entry.label,
-                { stage = tier.stage, calamity = entry.key })
         end
     end
 end
@@ -166,6 +161,18 @@ local function findTargetZombie(playerNum, worldobjects)
     return nil
 end
 
+--- Display options that can be flipped from the menu.
+local DISPLAY_TOGGLES = {
+    { key = "AcidSimpleZone", label = "IGUI_SZedPlus_DebugAcidZone" },
+    { key = "AcidOverlay",    label = "IGUI_SZedPlus_DebugAcidFootprint" },
+}
+
+--- Flip one display option.
+function SZedPlus.DebugMenu.onToggleDisplay(playerNum, key, current)
+    local now = SZedPlus.AcidRender.toggle(key, current)
+    SZedPlus.log("display %s -> %s", key, tostring(now))
+end
+
 --- Build "Zed+" and everything under it, into the menu it is given.
 function SZedPlus.DebugMenu.build(parentMenu, playerNum, worldobjects)
     local rootOption = parentMenu:addOption(getText("IGUI_SZedPlus_DebugMenu"), nil, nil)
@@ -183,6 +190,24 @@ function SZedPlus.DebugMenu.build(parentMenu, playerNum, worldobjects)
         else
             addSpawnOption(spawnMenu, playerNum, tier.label, { stage = tier.stage })
         end
+    end
+
+    -- The Creatures branch is parked with the T6 work: the species registers
+    -- and spawns, but its animation throws every frame. See CLAUDE.md.
+
+    -- Display toggles, which take effect immediately. The matching sandbox
+    -- options only apply at load - there is no engine event for a sandbox
+    -- change, and no in-game editor writing one in single player - so a menu
+    -- entry is the only way to flip one of these and see the result now.
+    local displayOption = rootMenu:addOption(getText("IGUI_SZedPlus_DebugDisplay"), nil, nil)
+    local displayMenu = ISContextMenu:getNew(rootMenu)
+    rootMenu:addSubMenu(displayOption, displayMenu)
+
+    for _, entry in ipairs(DISPLAY_TOGGLES) do
+        local on = SZedPlus.AcidRender.isOn(entry.key)
+        local option = displayMenu:addOption(getText(entry.label), playerNum,
+            SZedPlus.DebugMenu.onToggleDisplay, entry.key, on)
+        displayMenu:setOptionChecked(option, on)
     end
 
     rootMenu:addOption(getText("IGUI_SZedPlus_DebugGetStats"), playerNum,

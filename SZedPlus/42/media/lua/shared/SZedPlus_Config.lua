@@ -16,6 +16,11 @@ SZedPlus = SZedPlus or {}
 SZedPlus.Config = {}
 
 --- Fallbacks. These must match the `default =` lines in sandbox-options.txt.
+---
+--- The Volatile and every Calamity default to OFF: they are not implemented.
+--- The Volatile has no behaviour table at all (SZedPlus_Forms lists it as nil)
+--- and the Calamities are parked on the custom-creature animation problem, so
+--- leaving them on shipped a switch that promised something and did nothing.
 local DEFAULTS = {
     SpawnRate = 400,
 
@@ -26,6 +31,8 @@ local DEFAULTS = {
     T4SurvivalDays = 4,
 
     Debug = false,
+    AcidOverlay = false,
+    AcidSimpleZone = false,
 
     PathFast = true,
     PathTank = true,
@@ -33,7 +40,7 @@ local DEFAULTS = {
     PathRanged = true,
 
     FormWitch = true,
-    FormVolatile = true,
+    FormVolatile = false,
     FormColossus = true,
     FormBoomer = true,
     FormSneaker = true,
@@ -41,14 +48,14 @@ local DEFAULTS = {
     FormSpitter = true,
     FormScout = true,
 
-    CalamitiesEnabled = true,
-    CalamityHost = true,
-    CalamityMist = true,
-    CalamityLeader = true,
-    CalamityCentaur = true,
+    CalamitiesEnabled = false,
+    CalamityHost = false,
+    CalamityMist = false,
+    CalamityLeader = false,
+    CalamityCentaur = false,
     CalamityRadius = 150,
     CalamityMinZombies = 25,
-    CalamityPrePlaced = true,
+    CalamityPrePlaced = false,
 
     ThrillerEnabled = true,
     ThrillerRarity = 5000,
@@ -73,6 +80,19 @@ function SZedPlus.Config.refresh()
     for name in pairs(DEFAULTS) do
         values[name] = readOption(name)
     end
+end
+
+--- Re-read one option right now.
+---
+--- refresh() runs at load and at OnGameStart, and there is no engine event for
+--- "sandbox options changed" - so an option toggled from the in-game sandbox
+--- editor was invisible to the mod until a restart. That is fine for options
+--- read once at spawn, and wrong for anything a player expects to take effect
+--- immediately, which is what the debug overlay showed: the option was on and
+--- the mod still saw the value it had cached at load.
+function SZedPlus.Config.reread(name)
+    SZedPlus.Config.values[name] = readOption(name)
+    return SZedPlus.Config.get(name)
 end
 
 --- Accessor. Use this everywhere instead of touching .values directly, so a
@@ -123,7 +143,7 @@ local FORM_OPTIONS = {
     volatile = "FormVolatile",
     colossus = "FormColossus",
     boomer   = "FormBoomer",
-    sneaker  = "FormSneaker",
+    stalker  = "FormSneaker",
     mimic    = "FormMimic",
     spitter  = "FormSpitter",
     scout    = "FormScout",
@@ -169,3 +189,7 @@ SZedPlus.Config.refresh()
 -- Sandbox options are only final once the game (or the server connection) has
 -- started, so read them again then.
 Events.OnGameStart.Add(SZedPlus.Config.refresh)
+
+-- And periodically after that. A server admin can change options mid-session,
+-- and the replicated values arrive without any event to tell us.
+Events.EveryTenMinutes.Add(SZedPlus.Config.refresh)

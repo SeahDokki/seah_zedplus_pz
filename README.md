@@ -7,7 +7,7 @@ Design Bible — special enemy system, evolution tree and behaviours.
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20mod-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seahworld)
 [![License](https://img.shields.io/badge/License-Non--Commercial%20Source--Available-8A6C1A)](LICENSE)
 
-> ⚑ 4 open points still to be decided — see [Open points](#open-points).
+> ⚑ 3 open points still to be decided — see [Open points](#open-points).
 
 ---
 
@@ -65,7 +65,7 @@ graph TD
     FAST --> VOLATILE["Volatile<br/>T5"]
     TANK --> COLOSSUS["Colossus<br/>T5"]
     TANK --> BOOMER["Boomer<br/>T5"]
-    STEALTH --> SNEAKER["Sneaker<br/>T5"]
+    STEALTH --> STALKER["Stalker<br/>T5"]
     STEALTH --> MIMIC["Mimic<br/>T5"]
     RANGED --> SPITTER["Spitter<br/>T5"]
     RANGED --> SCOUT["Scout<br/>T5"]
@@ -106,8 +106,8 @@ randomly at spawn and determines which T5 forms are reachable.
 |---|---|
 | **Fast** | Faster than normal, less resistant. *Visually identical to a normal zombie.* Only its speed gives it away. |
 | **Tank** | Considerably slower, but far more resistant. *Visually identical to a normal zombie.* Hard to tell apart without attacking it. |
-| **Stealth** | Only aggros at very close range. Stays prone or motionless in building corners. *Normal appearance and sounds.* |
-| **Ranged** | Emits a putrefaction gas. *Normal appearance.* Unusual corpse sickness in the area may tip off an attentive player. |
+| **Stealth** | Dulled senses — only notices the player from a few tiles away, and forgets a target that moves away. *Normal appearance and sounds.* |
+| **Ranged** | Keen senses — spots the player from far outside normal detection range and starts closing in before they know it is there. *Normal appearance.* |
 
 ---
 
@@ -160,31 +160,50 @@ back.
 
 `Weakness: bladed ×2` · `Resistance: blunt ×0.5`
 
-#### Boomer — *Walking bomb* ⚑
+#### Boomer — *Walking bomb*
 
 | Speed | Resistance | Threat |
 |---|---|---|
 | Extremely slow | High | Explosion |
 
-Heads slowly toward the player once it spots them. At 4–5 tiles it stops and screams. The explosion follows four
-seconds later.
+Wears a hazmat suit and heads slowly toward the player once it spots them. At **2 tiles** it stops and screams, and
+the blast follows **4 seconds** later — close enough that it has to reach you, so backing off in time is the answer.
 
-> **Explosion** — Heavy direct damage plus an acid splash on nearby cells (same effect as the Spitter).
+**Two variants**, told apart on sight by the suit and by the oxygen bottle on its back:
 
-> ⚑ **To be decided** — unify the acid effect with the Spitter.
+| | Oxygen bottle | Suit | On detonation |
+|---|---|---|---|
+| **1 in 4** | Yes, intact | Pristine | Fire explosion **plus** [acid](#acid) |
+| **3 in 4** | None | Already torn and holed | [Acid](#acid) only |
+
+The torn suit is the tell: its bottle has already gone off once without killing it, so there is nothing left to
+ignite. A Boomer in a clean suit is the one that still has its bottle — and the one worth shooting from a distance.
+
+> **Shot on sight** — A bullet primes it whatever its remaining health, on a shorter **2-second** fuse. There is no
+> time to walk away from a bullet's worth of warning, so shooting one at close range is the mistake, not the safe
+> answer.
+
+> **No free hazmat suit** — The blast ruins its own gear: destroyed outright 1 time in 5, shredded but lootable the
+> rest of the time. Killing one is never a clean way to get a suit.
 
 ### Stealth path
 
-#### Sneaker — *Always behind you*
+#### Stalker — *Never seen moving*
 
-| Speed | Resistance | Sound |
+| Speed | Resistance | Behaviour |
 |---|---|---|
-| Moderate/fast | Normal | Breathing |
+| Very fast | Normal | Freezes when watched |
 
-Actively works to hold a position behind the player. It does not make the usual guttural sounds — only laboured
-breathing, audible if you listen for it.
+Stands perfectly still for as long as the player is looking at it, and closes the distance the moment they turn
+away. It is never seen moving — only closer than it was.
 
-> **Detection** — The player can locate it by the sound of its breathing. No growling, no conventional audio cue.
+> **Key mechanic** — Cornered at close range it drops the act and rushes, so backing into a wall does not make it
+> safe.
+
+> Replaces the earlier *Sneaker*, which was meant to circle around behind the player. A Project Zomboid zombie with
+> a target walks straight at it and overwrites any path set for it, and without a target it loses interest entirely
+> — there is no "approach from that side" behaviour to borrow. Freezing works reliably, so this form interrupts the
+> AI rather than fighting it.
 
 #### Mimic — *The corpse that waits* ⚑
 
@@ -208,11 +227,12 @@ tries to loot it. It knocks the player down (resisted based on fitness) and atta
 |---|---|---|
 | Moderate | Normal | Ranged |
 
-Throws persistent acid pools onto the ground. A player who stays 0.5 seconds in a pool triggers the effects:
-equipment corrosion and burns on uncovered body parts.
+Throws a single [acid](#acid) pool straight under the player's feet, from up to 10 tiles away, then waits about
+6 seconds before it can spit again.
 
-> **0.5 s delay** — The player can cross the area quickly without damage; the penalty targets those who fail to
-> react. Pools have a limited lifetime.
+> **It plants itself to spit** — Rooted for a second and a half each time, which is the window to close the distance
+> on it. Leading the target was tried and dropped: the pool landed where the player was heading rather than where
+> they stood, which read as missing rather than as area control.
 
 #### Scout — *Living alarm*
 
@@ -225,6 +245,30 @@ range comparable to a gunshot.
 
 > **Ranged role** — The danger is not the Scout itself, it is the horde it summons. Killing it quietly before it
 > screams is the priority.
+
+### Acid
+
+One shared effect, thrown by the [Spitter](#spitter--acid-area-control) and left behind by the
+[Boomer](#boomer--walking-bomb). A pool sits on the ground for about **25 seconds**, then fades out.
+
+Standing in one is what hurts — crossing it is free. The pool only bites after **half a second** of contact, so the
+penalty falls on players who fail to react rather than on anyone who touches it.
+
+Once it does bite, it works on the legs and feet only:
+
+- **Covered skin** — the clothing takes the corrosion instead, losing condition slowly.
+- **Bare skin** — burns, accumulating while the player stands in it and capped well short of fatal.
+- **Waterproof footwear** — wellies, waders, hazmat boots: acid stays out entirely. Read from the item's water
+  resistance rather than from a list of names, so any modded footwear that is genuinely waterproof protects too.
+  Ruined boots let it through, which keeps them a consumable rather than a permanent answer.
+
+| | Pools | Radius | Placement |
+|---|---|---|---|
+| **Spitter** | 1 | 1 tile | Under the player's feet |
+| **Boomer** | 5 | 2.2 tiles | Scattered all around the blast |
+
+> **Drawn by the mod, not by the game** — There is no ground-effect system to hang this on, and the engine's blood
+> decals are hardcoded to a single texture that cannot be pointed elsewhere. Pools are rendered by the mod itself.
 
 ---
 
@@ -341,9 +385,8 @@ by *Armageddon Riders* and *Michael Jackson's Thriller*.
 ## Open points
 
 1. **Volatile** — exact lifespan after the alert, before dying naturally
-2. **Boomer / Spitter** — unify the acid effect (shared implementation)
-3. **Mimic** — exact conditions for going dormant again (distance? timer?)
-4. **Scout** — exact behaviour on contact (melee attack? or flee?)
+2. **Mimic** — exact conditions for going dormant again (distance? timer?)
+3. **Scout** — exact behaviour on contact (melee attack? or flee?)
 
 ---
 

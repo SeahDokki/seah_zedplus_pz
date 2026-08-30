@@ -25,6 +25,21 @@ SZedPlus.Keys = {
     -- instead of compounding.
     baseHealth      = "SZedPlus_baseHealth",
     baseWalkType    = "SZedPlus_baseWalkType",
+
+    -- Worn clothing is saved with the zombie, so dressing must happen once and
+    -- never again: re-running it on a chunk reload would stack items and reset
+    -- the damage.
+    outfitApplied   = "SZedPlus_outfitApplied",
+
+    -- T5 form behaviour state. Kept in modData so a form remembers across a
+    -- chunk reload: a Witch that has screamed stays woken, a Mimic that was
+    -- stepped on stays awake until the player leaves.
+    formTriggered   = "SZedPlus_formTriggered",
+    formFuse        = "SZedPlus_formFuse",
+    formCooldown    = "SZedPlus_formCooldown",
+    formRoot        = "SZedPlus_formRoot",
+    formFloored     = "SZedPlus_formFloored",
+    formBottle      = "SZedPlus_formBottle",
 }
 
 --- The four T3-T4 specialisation paths.
@@ -48,7 +63,7 @@ SZedPlus.PathList = {
 SZedPlus.FormsByPath = {
     [SZedPlus.Path.FAST]    = { "witch", "volatile" },
     [SZedPlus.Path.TANK]    = { "colossus", "boomer" },
-    [SZedPlus.Path.STEALTH] = { "sneaker", "mimic" },
+    [SZedPlus.Path.STEALTH] = { "stalker", "mimic" },
     [SZedPlus.Path.RANGED]  = { "spitter", "scout" },
 }
 

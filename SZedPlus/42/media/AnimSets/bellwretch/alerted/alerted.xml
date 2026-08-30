@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>alerted</m_Name>
+	<m_AnimName>roar</m_AnimName>
+	<m_BlendTime>0.30</m_BlendTime>
+</animNode>

@@ -7,8 +7,9 @@ VERSION = 1,
  * SZedPlus.Config, never directly: the config layer applies fallbacks so the
  * mod still runs if an option is missing (older save, server override).
  *
- * Translation keys live in media/lua/shared/Translate/<LANG>/Sandbox_<LANG>.txt
- * as Sandbox_<translation> and Sandbox_<translation>_tooltip.
+ * Translation keys live in media/lua/shared/Translate/<LANG>/Sandbox.json
+ * as Sandbox_<translation> and Sandbox_<translation>_tooltip. JSON, and no
+ * language suffix in the filename - the folder carries the language.
  */
 
 /* ------------------------------------------------------------- general -- */
@@ -88,6 +89,24 @@ option SZedPlus.Debug
     translation = SZedPlus_Debug,
 }
 
+option SZedPlus.AcidSimpleZone
+{
+    type = boolean,
+    default = false,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_AcidSimpleZone,
+}
+
+option SZedPlus.AcidOverlay
+{
+    type = boolean,
+    default = false,
+
+    page = SZedPlusGeneral,
+    translation = SZedPlus_AcidOverlay,
+}
+
 /* --------------------------------------------------------------- paths -- */
 
 option SZedPlus.PathFast
@@ -140,7 +159,7 @@ option SZedPlus.FormWitch
 option SZedPlus.FormVolatile
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusForms,
     translation = SZedPlus_FormVolatile,
@@ -205,7 +224,7 @@ option SZedPlus.FormScout
 option SZedPlus.CalamitiesEnabled
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamitiesEnabled,
@@ -214,7 +233,7 @@ option SZedPlus.CalamitiesEnabled
 option SZedPlus.CalamityHost
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamityHost,
@@ -223,7 +242,7 @@ option SZedPlus.CalamityHost
 option SZedPlus.CalamityMist
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamityMist,
@@ -232,7 +251,7 @@ option SZedPlus.CalamityMist
 option SZedPlus.CalamityLeader
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamityLeader,
@@ -241,7 +260,7 @@ option SZedPlus.CalamityLeader
 option SZedPlus.CalamityCentaur
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamityCentaur,
@@ -272,7 +291,7 @@ option SZedPlus.CalamityMinZombies
 option SZedPlus.CalamityPrePlaced
 {
     type = boolean,
-    default = true,
+    default = false,
 
     page = SZedPlusCalamities,
     translation = SZedPlus_CalamityPrePlaced,

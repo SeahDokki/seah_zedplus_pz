@@ -8,21 +8,63 @@
 SZedPlus = SZedPlus or {}
 SZedPlus.Tiers = {}
 
---- The engine's walk types, slowest to fastest.
+--- Speed families, as the engine numbers them in IsoZombie.speedType.
+--- Confirmed in game: a zombie on "sprint1" reported 1, one on a bare "1"
+--- reported 2. Note the ordering is inverted - a LOWER number is FASTER.
+SZedPlus.Tiers.SPEED_SPRINTER = 1
+SZedPlus.Tiers.SPEED_FAST_SHAMBLER = 2
+SZedPlus.Tiers.SPEED_SHAMBLER = 3
+
+--- The full speed scale, slowest to fastest.
 ---
---- From IsoZombie's own documentation: "This Zed's walking type. slow1-3 if
---- it's a shambler, or sprint1-5 if it's a sprinter." The ordering within each
---- family is inferred, not documented; the debug stats panel shows the live
---- value so it can be checked in game.
-SZedPlus.Tiers.WALK_SPEEDS = {
+--- IsoZombie's documentation lists only "slow1-3 if it's a shambler, or
+--- sprint1-5 if it's a sprinter" and omits the middle family entirely. It is
+--- `walk1-3`, confirmed in game: a T4 Fast moved from slow2 to walk1 and
+--- reported speedType 2, the fast shambler family.
+---
+--- With the middle filled in, a step is meaningful again: +2 from slow2 lands
+--- on walk1, one family up, instead of jumping straight to a sprinter.
+---
+--- Validated at runtime against the engine's own mapping, so an entry the game
+--- does not recognise is dropped rather than silently breaking a shift.
+SZedPlus.Tiers.WALK_SCALE = {
     "slow1", "slow2", "slow3",
+    "walk1", "walk2", "walk3",
     "sprint1", "sprint2", "sprint3", "sprint4", "sprint5",
 }
 
---- Reverse lookup, built once.
-SZedPlus.Tiers.WALK_SPEED_INDEX = {}
-for index, name in ipairs(SZedPlus.Tiers.WALK_SPEEDS) do
-    SZedPlus.Tiers.WALK_SPEED_INDEX[name] = index
+--- Speed rules per path and stage.
+---
+--- `steps`   : positions moved along WALK_SCALE, clamped at both ends.
+--- `floor`   : the zombie ends up at least this fast, whatever the steps gave.
+--- `ceiling` : the zombie ends up at most this fast.
+---
+--- T3 and T4 use steps, so the effect is relative to the world the player
+--- chose: +2 turns a slow2 shambler into a walk1 fast shambler, and a world
+--- already running fast shamblers gets something faster still.
+---
+--- T5 uses a bound instead, because a final form is a promise, not a nudge: a
+--- Witch is a sprinter regardless of the sandbox speed setting. Bounds are
+--- applied after steps, and only ever in the intended direction, so a Fast Zed+
+--- can never come out slower than the zombies around it.
+SZedPlus.Tiers.SPEED_BY_PATH = {
+    fast = {
+        [3] = { steps = 1 },
+        [4] = { steps = 2 },
+        [5] = { steps = 2, floor = SZedPlus.Tiers.SPEED_SPRINTER },
+    },
+    tank = {
+        [3] = { steps = -1 },
+        [4] = { steps = -2 },
+        [5] = { steps = -2, ceiling = SZedPlus.Tiers.SPEED_SHAMBLER },
+    },
+}
+
+--- The speed rule for a stage and path, or nil when there is nothing to do.
+function SZedPlus.Tiers.getSpeedRule(stage, path)
+    local byPath = path and SZedPlus.Tiers.SPEED_BY_PATH[path]
+    if byPath == nil then return nil end
+    return byPath[stage]
 end
 
 --- Modifiers per stage, for the plain Reinforced tiers.
@@ -31,47 +73,75 @@ end
 --- player's Toughness sandbox setting is still respected - a Zed+ is relative
 --- to the world it spawns in, never an absolute value.
 ---
---- `speedSteps` shifts the walk type along WALK_SPEEDS. Relative for the same
---- reason: on a Shamblers world a Fast Zed+ becomes a quicker shambler, it does
---- not suddenly sprint.
 SZedPlus.Tiers.BY_STAGE = {
-    [1] = { health = 1.15, speedSteps = 0 },
-    [2] = { health = 1.30, speedSteps = 0 },
-    [3] = { health = 1.30, speedSteps = 0 },
-    [4] = { health = 1.45, speedSteps = 0 },
+    [1] = { health = 1.15 },
+    [2] = { health = 1.30 },
+    [3] = { health = 1.30 },
+    [4] = { health = 1.45 },
+    [5] = { health = 1.60 },
 }
 
 --- Modifiers per path, applied on top of the stage modifiers.
 ---
---- `hearing` is DESIGN INTENT ONLY and currently has no effect: IsoZombie
---- exposes `hearing` as a field with no setter, so it cannot be changed per
---- zombie from Lua. Kept here because the Stealth behaviour will need the
---- intent; see the note at the end of SZedPlus_Behaviour.lua.
----
 --- T3 is the milder version of T4: `scale` multiplies how far the path pushes
 --- away from an ordinary zombie, so a T3 Tank is tough, a T4 Tank is tougher.
+---
+--- Stealth and Ranged trade nothing in health: their axis is perception, see
+--- SENSES_BY_PATH below.
 SZedPlus.Tiers.BY_PATH = {
     fast = {
         health = 0.70,      -- faster, but noticeably easier to put down
-        speedSteps = 1,
-        hearing = 1.0,
     },
     tank = {
         health = 2.20,
-        speedSteps = -1,
-        hearing = 1.0,
     },
     stealth = {
         health = 1.0,
-        speedSteps = 0,
-        hearing = 0.25,     -- only reacts from very close
     },
     ranged = {
         health = 1.0,
-        speedSteps = 0,
-        hearing = 1.0,
     },
 }
+
+--- Perception rules, the Stealth/Ranged axis.
+---
+--- The same trade as Fast/Tank, on a different stat: Stealth barely notices
+--- you, Ranged notices you from across the street.
+---
+--- `mode`         : "dull" drops a target beyond the radius, "keen" acquires
+---                  one within it.
+--- `aggroRadius`  : in tiles.
+--- `aggroStrength`: weight passed to addAggro, "keen" only.
+---
+--- The engine's own per-zombie perception is NOT usable here. `hearing` and
+--- `sight` are public int fields on IsoZombie with no setters, and Project
+--- Zomboid's Lua binding does not expose Java fields - reading and writing both
+--- fail at runtime (verified in game, not assumed). The Hearing and Sight
+--- sandbox options are applied engine-side and cannot be overridden per zombie.
+---
+--- So the aggro is driven directly, which is what a perception change would
+--- have produced anyway - and it gives exact distances instead of the three
+--- coarse levels the sandbox exposes. An ordinary zombie notices a player at
+--- roughly 10-20 tiles, so 4 tiles is "you can walk past it" and 32 is "it saw
+--- you first".
+SZedPlus.Tiers.SENSES_BY_PATH = {
+    stealth = {
+        [3] = { mode = "dull", aggroRadius = 7 },
+        [4] = { mode = "dull", aggroRadius = 4 },
+    },
+    ranged = {
+        [3] = { mode = "keen", aggroRadius = 20, aggroStrength = 1.0 },
+        [4] = { mode = "keen", aggroRadius = 32, aggroStrength = 1.0 },
+    },
+}
+
+--- The perception rule for a stage and path, or nil when there is nothing
+--- to manage - which is the common case, and lets the sweep skip most zombies.
+function SZedPlus.Tiers.getSenseRule(stage, path)
+    local byPath = path and SZedPlus.Tiers.SENSES_BY_PATH[path]
+    if byPath == nil then return nil end
+    return byPath[stage]
+end
 
 --- How strongly the path modifier counts at each stage.
 SZedPlus.Tiers.PATH_SCALE = {
@@ -85,44 +155,21 @@ local function scaleMultiplier(value, scale)
     return 1.0 + (value - 1.0) * scale
 end
 
---- Resolve the final modifiers for a classified zombie.
---- Returns a table { health, speedSteps, hearing }.
+--- Resolve the health modifier for a classified zombie.
+--- Speed and perception are separate: see getSpeedRule() and getSenseRule().
 function SZedPlus.Tiers.resolve(stage, path)
-    local result = { health = 1.0, speedSteps = 0, hearing = 1.0 }
+    local result = { health = 1.0 }
 
     local byStage = SZedPlus.Tiers.BY_STAGE[stage]
     if byStage then
         result.health = byStage.health
-        result.speedSteps = byStage.speedSteps
     end
 
     local byPath = path and SZedPlus.Tiers.BY_PATH[path]
     if byPath then
         local scale = SZedPlus.Tiers.PATH_SCALE[stage] or 1.0
         result.health = result.health * scaleMultiplier(byPath.health, scale)
-        result.hearing = scaleMultiplier(byPath.hearing, scale)
-
-        -- Speed steps are whole positions on the scale, so round rather than
-        -- blend: half a step would be meaningless.
-        local steps = byPath.speedSteps * scale
-        result.speedSteps = result.speedSteps
-            + (steps >= 0 and math.floor(steps + 0.5) or -math.floor(-steps + 0.5))
     end
 
     return result
-end
-
---- Shift a walk type by `steps` along the speed scale, clamped at both ends.
---- Returns the original value when it is not a name we know.
-function SZedPlus.Tiers.shiftWalkType(walkType, steps)
-    if steps == 0 then return walkType end
-
-    local index = SZedPlus.Tiers.WALK_SPEED_INDEX[walkType]
-    if index == nil then return walkType end
-
-    local target = index + steps
-    if target < 1 then target = 1 end
-    if target > #SZedPlus.Tiers.WALK_SPEEDS then target = #SZedPlus.Tiers.WALK_SPEEDS end
-
-    return SZedPlus.Tiers.WALK_SPEEDS[target]
 end

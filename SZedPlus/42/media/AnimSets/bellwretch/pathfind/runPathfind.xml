@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>runPathfind</m_Name>
+	<m_AnimName>run</m_AnimName>
+	<m_BlendTime>0.40</m_BlendTime>
+</animNode>

@@ -1,0 +1,44 @@
+/*
+ * ZED+ creature models.
+ *
+ * T6 Calamities are custom creatures built on B42's animal system rather than
+ * zombies: a zombie cannot be resized from Lua, an animal can. See CLAUDE.md,
+ * "Custom creatures: decided direction".
+ *
+ * `keepMeshAnimations = true` means the animations travel inside the mesh. The
+ * Bellwretch ships idle, walk, run, crying attack, roar, hit reaction, death.
+ *
+ * The GLB is repaired before shipping, by tools/fixglb.py. As downloaded it
+ * declared no `skeleton` root and kept its mesh node inside the armature; the
+ * engine then built 60 bones for a 61-joint skin and threw
+ * `ArrayIndexOutOfBoundsException: Index 60 out of bounds for length 60`, which
+ * on screen looked like geometry stretched to infinity.
+ *
+ * Both differences were found by diffing against the dinosaur mod's
+ * Velociraptor, which imports cleanly: it declares `skeleton` and keeps the
+ * mesh as a separate scene root. The fix is structural JSON, not modelling -
+ * no vertex is touched.
+ *
+ * Scale is measured, not guessed. A Project Zomboid body (MaleBody.x) is 0.981
+ * units tall; the Bellwretch mesh is 2.188, so it already stands 2.23x a human.
+ * The Leader reads as roughly 3.5x, hence 0.981 * 3.5 / 2.188.
+ */
+
+module SZedPlus
+{
+    animationsMesh Bellwretch
+    {
+        meshFile = SZedPlus/Bellwretch,
+        keepMeshAnimations = true,
+    }
+
+    /* The Leader - towering, ~3.5x a zombie. */
+    model Bellwretch
+    {
+        mesh = SZedPlus/Bellwretch,
+        animationsMesh = SZedPlus.Bellwretch,
+        shader = animalEffect,
+        static = false,
+        scale = 1.5688,
+    }
+}

@@ -193,6 +193,56 @@ function SZedPlus.DebugSpawn.sendStats(player, args)
     end
 end
 
+--- Spawn a ZED+ creature - an animal species, not a zombie.
+---
+--- Uses addAnimal(cell, x, y, z, type, breed), the same call the vanilla debug
+--- menu uses. The species must have been registered on OnGameBoot; if it was
+--- not, say so rather than letting addAnimal fail obscurely.
+function SZedPlus.DebugSpawn.spawnCreature(player, args)
+    if player == nil or args == nil or args.type == nil then return end
+
+    if not SZedPlus.Creatures.isRegistered(args.type) then
+        SZedPlus.logError("creature '%s' is not registered - check the OnGameBoot log",
+            tostring(args.type))
+        return
+    end
+
+    local square = findSpawnSquare(player)
+    if square == nil then
+        SZedPlus.logError("creature spawn: no square available")
+        return
+    end
+
+    -- Two ways in. addAnimal() is what the vanilla debug menu uses;
+    -- IsoAnimal.new() is what the reference dinosaur mod uses. Try both, and
+    -- report the actual error text - a bare "failed" says nothing useful.
+    local ok, result = pcall(addAnimal, getCell(),
+        square:getX(), square:getY(), square:getZ(),
+        args.type, args.breed or "default")
+
+    if not ok then
+        SZedPlus.logError("addAnimal('%s') threw: %s", tostring(args.type), tostring(result))
+
+        ok, result = pcall(IsoAnimal.new, getCell(),
+            square:getX(), square:getY(), square:getZ(),
+            args.type, args.breed or "default")
+        if not ok then
+            SZedPlus.logError("IsoAnimal.new('%s') threw: %s",
+                tostring(args.type), tostring(result))
+            return
+        end
+        SZedPlus.logAlways("IsoAnimal.new worked where addAnimal did not")
+    end
+
+    if result == nil then
+        SZedPlus.logError("creature '%s' created nothing", tostring(args.type))
+        return
+    end
+
+    SZedPlus.logAlways("debug: spawned creature '%s' at %d,%d,%d",
+        tostring(args.type), square:getX(), square:getY(), square:getZ())
+end
+
 -- ------------------------------------------------- multiplayer entry point --
 
 local HANDLERS = {
@@ -200,6 +250,7 @@ local HANDLERS = {
     inspect = function(player) SZedPlus.DebugSpawn.inspect(player) end,
     removeNearby = function(player) SZedPlus.DebugSpawn.removeNearby(player) end,
     getStats = function(player, args) SZedPlus.DebugSpawn.sendStats(player, args) end,
+    spawnCreature = function(player, args) SZedPlus.DebugSpawn.spawnCreature(player, args) end,
 }
 
 --- Debug commands from a multiplayer client.

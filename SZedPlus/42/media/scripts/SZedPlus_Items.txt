@@ -1,0 +1,29 @@
+/*
+ * ZED+ body overlays.
+ *
+ * Burns cannot be painted on a zombie directly: HumanVisual.setSkinTextureName
+ * exists but no rendering code reads it - the same dead field as
+ * forceModelScript. What the engine does read is the body-visual system, which
+ * is how it draws hair stubble and the ZedDmg_* wounds: an invisible clothing
+ * item sitting on the `zeddmg` body location, carrying a texture.
+ *
+ * So a burn is an item. It is applied with
+ * IsoGameCharacter.addBodyVisualFromItemType(), the same call the game uses for
+ * beards.
+ *
+ * `hidden` and `WorldRender = false` keep it out of inventories and off the
+ * ground: it is a texture, not something anyone can pick up.
+ */
+
+module Base
+{
+    item SZedPlus_Burn
+    {
+        DisplayCategory = MaleBody,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = SZedPlus_Burn,
+        WorldRender = false,
+        hidden = true,
+    }
+}

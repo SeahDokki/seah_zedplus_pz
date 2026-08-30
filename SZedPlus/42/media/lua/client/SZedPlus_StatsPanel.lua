@@ -97,16 +97,57 @@ function SZedPlusStatsPanel:prerender()
     y = self:drawRow(y, getText("IGUI_SZedPlus_StatsHealth"), healthText, hr, hg, hb)
 
     local walkText = tostring(stats.walkType or "-")
+    local wr, wg, wb = 1, 1, 1
     if stats.baseWalkType and stats.baseWalkType ~= stats.walkType then
-        walkText = string.format("%s  (%s %+d)",
-            tostring(stats.walkType), tostring(stats.baseWalkType), stats.speedSteps or 0)
+        walkText = string.format("%s  (was %s)",
+            tostring(stats.walkType), tostring(stats.baseWalkType))
+    elseif stats.speedRule then
+        -- A rule applied and changed nothing. Two very different reasons:
+        -- the zombie already satisfied it (fine), or it could not be satisfied
+        -- (a problem). The server says which, so only the second is flagged.
+        walkText = string.format("%s  (%s, %s)",
+            tostring(stats.walkType), tostring(stats.speedRule),
+            stats.speedRuleMet and "already met" or "NOT APPLIED")
+        if not stats.speedRuleMet then
+            wr, wg, wb = 0.9, 0.4, 0.3
+        end
     end
-    y = self:drawRow(y, getText("IGUI_SZedPlus_StatsWalkType"), walkText)
+    y = self:drawRow(y, getText("IGUI_SZedPlus_StatsWalkType"), walkText, wr, wg, wb)
 
     y = self:drawRow(y, getText("IGUI_SZedPlus_StatsSpeedType"),
         tostring(stats.speedType or "-"))
 
+    -- Perception: the Stealth/Ranged axis. Shown with the live target state so
+    -- the effect is checkable by walking towards the zombie.
+    local senseText = "-"
+    local sr, sg, sb = 0.7, 0.7, 0.7
+    if stats.senseMode then
+        senseText = string.format("%s, %d tiles", stats.senseMode, stats.senseRadius or 0)
+        sr, sg, sb = 1, 1, 1
+    end
+    y = self:drawRow(y, getText("IGUI_SZedPlus_StatsSenses"), senseText, sr, sg, sb)
+
+    -- Form behaviour, with its live state: this is what makes a T5 checkable.
+    -- "ambush/armed" means the Witch has screamed and will not let go.
+    if stats.formMode then
+        local formText = tostring(stats.formMode)
+        if stats.formBottle then
+            formText = formText .. " +fire"
+        end
+        if stats.formFuse then
+            formText = formText .. string.format(" - FUSE %d", stats.formFuse)
+        elseif stats.formTriggered then
+            formText = formText .. " - triggered"
+        else
+            formText = formText .. " - waiting"
+        end
+        y = self:drawRow(y, getText("IGUI_SZedPlus_StatsForm"), formText,
+            stats.formTriggered and 0.9 or 1, stats.formTriggered and 0.6 or 1,
+            stats.formTriggered and 0.3 or 1)
+    end
+
     local flags = {}
+    if stats.hasTarget then flags[#flags + 1] = "has target" end
     if stats.crawling then flags[#flags + 1] = "crawling" end
     if stats.knockedDown then flags[#flags + 1] = "knocked down" end
     self:drawRow(y, getText("IGUI_SZedPlus_StatsFlags"),
@@ -121,7 +162,7 @@ function SZedPlus.showStats(stats, message)
         instance = SZedPlusStatsPanel:new(
             getCore():getScreenWidth() / 2 - 170,
             getCore():getScreenHeight() / 2 - 90,
-            340, 160)
+            420, 210)
         instance:initialise()
         instance:instantiate()
         instance:addToUIManager()

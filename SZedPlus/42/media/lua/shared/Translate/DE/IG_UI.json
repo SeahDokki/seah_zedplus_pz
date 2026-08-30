@@ -4,6 +4,9 @@
     "IGUI_SZedPlus_DebugSpawn": "Erzeugen",
     "IGUI_SZedPlus_DebugInspect": "Zed+ in der Nähe untersuchen",
     "IGUI_SZedPlus_DebugRemove": "Zed+ in der Nähe entfernen",
+    "IGUI_SZedPlus_DebugDisplay": "Anzeige",
+    "IGUI_SZedPlus_DebugAcidZone": "Vereinfachte Säurezonen",
+    "IGUI_SZedPlus_DebugAcidFootprint": "Säure-Wirkungsbereich (Felder)",
     "IGUI_SZedPlus_Tier1": "T1 - Verstärkt",
     "IGUI_SZedPlus_Tier2": "T2 - Verstärkt",
     "IGUI_SZedPlus_Tier3": "T3 - Spezialisiert",
@@ -18,7 +21,7 @@
     "IGUI_SZedPlus_FormVolatile": "Volatile",
     "IGUI_SZedPlus_FormColossus": "Koloss",
     "IGUI_SZedPlus_FormBoomer": "Boomer",
-    "IGUI_SZedPlus_FormSneaker": "Sneaker",
+    "IGUI_SZedPlus_FormSneaker": "Der Pirscher",
     "IGUI_SZedPlus_FormMimic": "Mimik",
     "IGUI_SZedPlus_FormSpitter": "Spitter",
     "IGUI_SZedPlus_FormScout": "Scout",
@@ -34,5 +37,8 @@
     "IGUI_SZedPlus_StatsSpeedType": "Geschwindigkeitstyp",
     "IGUI_SZedPlus_StatsFlags": "Merkmale",
     "IGUI_SZedPlus_StatsOrdinary": "gewöhnlicher Zombie",
-    "IGUI_SZedPlus_StatsNoTarget": "Dort wurde kein Zombie gefunden"
+    "IGUI_SZedPlus_StatsNoTarget": "Dort wurde kein Zombie gefunden",
+    "IGUI_SZedPlus_StatsSenses": "Wahrnehmung",
+    "IGUI_SZedPlus_DebugCreatures": "Kreaturen",
+    "IGUI_SZedPlus_StatsForm": "Verhalten"
 }

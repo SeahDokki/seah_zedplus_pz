@@ -7,3 +7,7 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# Asset sources (originals, .blend, downloads). Only what the mod loads is
+# versioned, under SZedPlus/42/media/. See ASSETS.md.
+Assets/

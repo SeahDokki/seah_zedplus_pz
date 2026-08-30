@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>defaultWalk</m_Name>
+	<m_AnimName>walk</m_AnimName>
+	<m_BlendTime>0.50</m_BlendTime>
+</animNode>
