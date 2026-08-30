@@ -30,6 +30,34 @@ local tickCounter = 0
 --- Colossi currently tracked. Kept apart because they need attention every
 --- tick, not every sweep: a knockdown lands between two sweeps and the zombie
 --- is already on the floor by the time the sweep comes round. OnHitZombie was
+local function getPlayers()
+    if isServer() then return getOnlinePlayers() end
+    return IsoPlayer.getPlayers()
+end
+
+local function squaredDistance(a, b)
+    local dx, dy = a:getX() - b:getX(), a:getY() - b:getY()
+    return dx * dx + dy * dy
+end
+
+--- Nearest living player on the same floor, with the squared distance.
+local function findNearestPlayer(zombie)
+    local players = getPlayers()
+    if players == nil then return nil, nil end
+
+    local best, bestDistance = nil, nil
+    for index = 0, players:size() - 1 do
+        local player = players:get(index)
+        if player and not player:isDead() and player:getZ() == zombie:getZ() then
+            local distance = squaredDistance(zombie, player)
+            if bestDistance == nil or distance < bestDistance then
+                best, bestDistance = player, distance
+            end
+        end
+    end
+    return best, bestDistance
+end
+
 --- not enough either - the fall is decided after that hook returns.
 local steadfast = {}
 local steadfastCount = 0
@@ -61,6 +89,28 @@ local function holdSteadfast()
                     zombie:clearAggroList()
                     zombie:setCanWalk(false)
                 end)
+            elseif rule and rule.holdTarget and data[Keys.formTriggered] then
+                -- Re-hands her the player every tick.
+                --
+                -- "Once aggroed, never lets go" cannot be maintained six ticks
+                -- at a time: the engine drops a target that is far away long
+                -- before the next sweep restores it, and she went home. Held
+                -- per tick, distance stops meaning anything to her - which is
+                -- the whole point of the form.
+                -- Re-asserted every tick, not only when the target has gone.
+                -- A target that is set but stale leaves her standing still, and
+                -- "she never lets go" has to mean she is still coming.
+                --
+                -- Through the player list, not getSpecificPlayer(0): that index
+                -- does not exist on a dedicated server.
+                pcall(function()
+                    local quarry = findNearestPlayer(zombie)
+                    if quarry and not quarry:isDead() then
+                        zombie:setCanWalk(true)
+                        zombie:addAggro(quarry, 100.0)
+                        zombie:setTarget(quarry)
+                    end
+                end)
             elseif rule and rule.noStagger then
                 pcall(function()
                     zombie:setUnbalancedLevel(0.0)
@@ -84,33 +134,8 @@ end
 
 -- --------------------------------------------------------------- helpers --
 
-local function squaredDistance(a, b)
-    local dx, dy = a:getX() - b:getX(), a:getY() - b:getY()
-    return dx * dx + dy * dy
-end
 
-local function getPlayers()
-    if isServer() then return getOnlinePlayers() end
-    return IsoPlayer.getPlayers()
-end
 
---- Nearest living player on the same floor, with the squared distance.
-local function findNearestPlayer(zombie)
-    local players = getPlayers()
-    if players == nil then return nil, nil end
-
-    local best, bestDistance = nil, nil
-    for index = 0, players:size() - 1 do
-        local player = players:get(index)
-        if player and not player:isDead() and player:getZ() == zombie:getZ() then
-            local distance = squaredDistance(zombie, player)
-            if bestDistance == nil or distance < bestDistance then
-                best, bestDistance = player, distance
-            end
-        end
-    end
-    return best, bestDistance
-end
 
 --- Make a noise the world reacts to.
 ---
@@ -317,6 +342,12 @@ local function runAmbush(zombie, rule, data, player, distance)
                 player:getX() - fx * behind,
                 player:getY() - fy * behind,
                 player:getZ()) then
+
+                -- Handed the player again on the spot. Being moved leaves her
+                -- standing where she landed: the teleport worked and she then
+                -- did nothing, which read as her losing interest.
+                pcall(function() zombie:setCanWalk(true) end)
+                chase(zombie, player)
                 SZedPlus.log("witch closed the distance")
             end
         end
@@ -564,8 +595,15 @@ end
 local function runStalk(zombie, rule, data, player, distance)
     enforceWalkType(zombie, rule.forceWalkType)
 
-    if player == nil or distance == nil then return end
+    -- Released here, not only when unwatched: a Stalker frozen at the moment
+    -- the player turns and walks away would otherwise stay locked for good.
+    local function release()
+        pcall(function() zombie:setStateMachineLocked(false) end)
+    end
+
+    if player == nil or distance == nil then release() return end
     if distance > rule.triggerDist * rule.triggerDist then
+        release()
         zombie:setTarget(nil)
         zombie:clearAggroList()
         pcall(function() zombie:setCanWalk(true) end)
@@ -580,6 +618,7 @@ local function runStalk(zombie, rule, data, player, distance)
     -- charges whatever the player is looking at - which looks exactly like the
     -- freeze never working.
     if distance <= rule.commitDist * rule.commitDist then
+        release()
         pcall(function() zombie:setCanWalk(true) end)
         chase(zombie, player)
         logOnce(data, string.format("stalker committed (%.1f tiles, commit at %.1f)",
@@ -589,17 +628,19 @@ local function runStalk(zombie, rule, data, player, distance)
     end
 
     if isWatchedBy(zombie, player, rule.visionAngle) then
-        -- Watched: stop dead. Nothing else - no turning, no wandering.
+        -- Watched: put it in the idle state and lock the state machine.
         --
-        -- Walking away was tried and cannot be built: a zombie is driven by its
-        -- target and nothing else, so pathToLocationF is ignored with one and
-        -- does nothing without one, and Wander() did not move it either. This
-        -- is the coil-head rule instead, and it only needs the zombie to hold
-        -- still, which is the one thing that always works.
+        -- setCanWalk(false) and a cleared target are not a freeze. The AI keeps
+        -- its own state, re-acquires between sweeps and walks anyway, which is
+        -- why every version of this failed regardless of how the freeze was
+        -- expressed - the detection was only ever half the problem. Locking the
+        -- machine is the one thing the AI cannot step around.
         pcall(function()
-            zombie:setCanWalk(false)
             zombie:setTarget(nil)
             zombie:clearAggroList()
+            zombie:setCanWalk(false)
+            zombie:changeState(ZombieIdleState.instance())
+            zombie:setStateMachineLocked(true)
         end)
 
         logOnce(data, string.format("stalker frozen (facing %s, dot %.2f, need %.2f)",
@@ -614,6 +655,7 @@ local function runStalk(zombie, rule, data, player, distance)
     -- chase() re-aggros from scratch every sweep, so looking away always brings
     -- it back. It cannot lose you permanently by having been seen once, which
     -- is what clearing the aggro list on its own would have caused.
+    release()
     enforceWalkType(zombie, rule.forceWalkType)
     pcall(function() zombie:setCanWalk(true) end)
     chase(zombie, player)
@@ -672,8 +714,14 @@ local function runDormant(zombie, rule, data, player, distance)
     end
 
     -- Awake: crawl after them, still on the floor.
+    --
+    -- Only re-targeted when it is not already onto the player. Calling chase()
+    -- every sweep restarted the path six times a second, which is what made it
+    -- stutter on the spot once it got close.
     pcall(function() zombie:setCanWalk(true) end)
-    chase(zombie, player)
+    local onTarget = false
+    pcall(function() onTarget = zombie:getTarget() == player end)
+    if not onTarget then chase(zombie, player) end
 
     if distance > rule.biteRange * rule.biteRange then return end
 
@@ -864,7 +912,7 @@ function SZedPlus.FormBehaviour.track(zombie)
     tracked[trackedCount] = zombie
 
     local rule = SZedPlus.Forms.get(data[Keys.form])
-    if rule and (rule.noStagger or rule.holdStill) then
+    if rule and (rule.noStagger or rule.holdStill or rule.holdTarget) then
         steadfastCount = steadfastCount + 1
         steadfast[steadfastCount] = zombie
     end
@@ -961,6 +1009,17 @@ local function onHitZombie(zombie, wielder, bodyPart, weapon)
 end
 
 Events.OnHitZombie.Add(onHitZombie)
+
+--- Visit every loaded T5. Used by the persistence layer to keep their recorded
+--- positions current without scanning the world.
+function SZedPlus.FormBehaviour.forEachTracked(fn)
+    for index = 1, trackedCount do
+        local zombie = tracked[index]
+        if zombie ~= nil and zombie:getSquare() ~= nil and not zombie:isDead() then
+            pcall(fn, zombie)
+        end
+    end
+end
 
 --- How many T5 are running a behaviour, for the debug tools.
 function SZedPlus.FormBehaviour.count()

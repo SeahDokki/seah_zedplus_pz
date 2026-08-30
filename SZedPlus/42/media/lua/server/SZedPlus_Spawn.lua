@@ -60,6 +60,10 @@ function SZedPlus.Spawn.applySpec(zombie, spec)
     SZedPlus.Senses.track(zombie)
     SZedPlus.FormBehaviour.track(zombie)
 
+    -- A T5 is remembered in world ModData, because its own modData does not
+    -- survive the population manager - see SZedPlus_Persistence.
+    if SZedPlus.Persistence then SZedPlus.Persistence.remember(zombie) end
+
     SZedPlus.log("applied %s at day %d", SZedPlus.describe(zombie), day)
     return true
 end
@@ -124,6 +128,21 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
             SZedPlus.FormBehaviour.track(zombie)
         end
         return
+    end
+
+    -- Before rolling: this zombie may be standing where a T5 was left. The
+    -- object is new - the old one was discarded with its modData - but the form
+    -- belongs to the place, so it is handed over rather than lost.
+    if SZedPlus.Persistence then
+        local claim, key = SZedPlus.Persistence.findClaim(zombie)
+        if claim then
+            SZedPlus.Persistence.consume(key)
+            SZedPlus.Spawn.applySpec(zombie, {
+                stage = 5, path = claim.path, form = claim.form,
+            })
+            SZedPlus.log("a T5 %s reclaimed its form here", tostring(claim.form))
+            return
+        end
     end
 
     if SZedPlus.rollOneIn(SZedPlus.Config.get("SpawnRate")) then

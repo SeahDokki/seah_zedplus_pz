@@ -26,12 +26,24 @@ SZedPlus.Forms.BY_FORM = {
         screamRadius = 30,
         screamVolume = 30,
         relentless = true,
+        -- Re-asserted every tick. The sweep alone let the engine drop a distant
+        -- target between passes, so she quietly gave up - the opposite of what
+        -- the form promises.
+        holdTarget = true,
         -- Sits until something disturbs her, which is what makes her read as
         -- scenery right up until she does not.
         sitWhileWaiting = true,
         -- Beyond this she closes the gap outright, but only while unobserved:
         -- she is never seen to appear. Driving away buys distance, not safety.
-        teleportDist = 120,
+        --
+        -- Well inside the loaded area, and that is the point rather than a
+        -- balance choice. At 120 she was culled before she ever teleported: the
+        -- engine removes zombies whose chunk unloads, and a player in a car
+        -- outruns that easily. She came back as an ordinary zombie because it
+        -- was a different zombie - hers had been deleted, modData and all.
+        -- Closing at 40 keeps her inside the simulated region, where she still
+        -- exists to do the chasing the form promises.
+        teleportDist = 40,
         -- Where she reappears, in tiles behind the player.
         teleportBehind = 15,
         -- Forced outright rather than left to the speed rule: she is the

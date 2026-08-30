@@ -42,6 +42,7 @@ SZedPlus.Keys = {
     formBottle      = "SZedPlus_formBottle",
     formLastLog     = "SZedPlus_formLastLog",
     formLunge       = "SZedPlus_formLunge",
+    persistId       = "SZedPlus_persistId",
 }
 
 --- The four T3-T4 specialisation paths.
