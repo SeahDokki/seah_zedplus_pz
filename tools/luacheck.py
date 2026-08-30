@@ -38,6 +38,29 @@ for path in sorted(glob.glob("SZedPlus/42/media/lua/**/*.lua", recursive=True)):
     if opens != ends:
         problems.append("blocks %d open / %d end" % (opens, ends))
 
+    # A local declared after the line that calls it is nil at that point. Lua
+    # says nothing; the call throws at runtime, and inside a pcall it vanishes.
+    # That is how logOnce shipped defined below the function using it - the
+    # Stalker threw on every sweep and its behaviour never changed.
+    lines = code.splitlines()
+    declared = {}
+    for number, line in enumerate(lines, 1):
+        # Module level only. A `local` inside a function is scoped to it, and
+        # treating one as file-wide reports every other function that happens
+        # to reuse the name.
+        match = re.match(r"local (?:function )?(\w+)", line)
+        if match and match.group(1) not in declared:
+            declared[match.group(1)] = number
+
+    for number, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("--"):
+            continue
+        for name, where in declared.items():
+            if number < where and re.search(r"\b%s\s*\(" % re.escape(name), line):
+                problems.append("%s used at line %d, declared at %d"
+                                % (name, number, where))
+
     if problems:
         failed = True
         print("FAIL %s : %s" % (path, ", ".join(problems)))

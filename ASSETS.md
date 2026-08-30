@@ -80,21 +80,9 @@ These live in `Assets/` for authoring and are **not** distributed with the mod:
 Prefer CC0 or CC-BY. Be careful with "free for personal use": this mod is distributed publicly, which that wording
 usually excludes.
 
-## Working files
+## Unused
 
-`Assets/SZedPlus_AcidPool.png` is the authored acid splat, 512x512 top-down.
-The copy shipped at `42/media/textures/highlights/SZedPlus_AcidPool.png` is that
-image resized to 512x256 - the isometric footprint of a ground tile, which every
-WorldMarkers texture uses. Re-edit the source, then re-project; editing the
-shipped file directly means working on an already-squashed image.
-
-Two conventions the shipped file has to keep, both matching vanilla's own marker
-artwork in `media/textures/highlights/`:
-
-- **White RGB under the transparent pixels**, not black. Black there renders as
-  a solid dark quad.
-- **Not premultiplied.** RGB may exceed alpha, as vanilla's does.
-
-Resize each channel separately. Resizing an RGBA image whole makes Pillow
-premultiply to resample and un-premultiply afterwards, which puts black back
-wherever alpha lands on 0.
+`Assets/SZedPlus_AcidPool.png` is the acid splat, authored for the ground. It is
+not shipped: grid-square markers cannot render a custom texture (see CLAUDE.md),
+so acid pools are drawn with the engine's own marker artwork. Kept in case a
+future build opens that door.

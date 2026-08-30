@@ -49,6 +49,13 @@ SZedPlus.Forms.BY_FORM = {
     colossus = {
         mode = "unstoppable",
         noStagger = true,
+        -- A connected blow puts the player on the ground. Being hit by a wall
+        -- of flesh should cost more than health.
+        floorOnHit = true,
+        hitRange = 1.6,
+        -- Long enough that a player who goes down can get back up and move,
+        -- rather than being pinned by a zombie that never stops swinging.
+        floorCooldownTicks = 5 * 60,
     },
 
     -- Closes in, stops a few tiles short, screams, then detonates.
@@ -86,8 +93,8 @@ SZedPlus.Forms.BY_FORM = {
         gearDestroyedChance = 20,
     },
 
-    -- The Stalker. Freezes the moment it is looked at, and only moves while
-    -- the player's back is turned.
+    -- The Stalker. Freezes the moment it is looked at, and sprints the instant
+    -- it is not - the coil head rule.
     --
     -- Replaces the Sneaker, which tried to circle around behind the player and
     -- could not: a PZ zombie with a target walks straight at it and overwrites
@@ -106,21 +113,38 @@ SZedPlus.Forms.BY_FORM = {
         commitDist = 3,
         -- It only stalks. Its speed is in the moments you are not looking.
         forceWalkType = "sprint5",
+        -- Held still every tick while watched. The sweep alone cannot hold a
+        -- sprinter: it crosses ground and re-acquires its target between two
+        -- passes, which is why every version of the freeze failed.
+        holdStill = true,
     },
 
-    -- Lies among the corpses until stepped on, then becomes a crawler.
+    -- Lies among the corpses and never gets up. Bites at ankles.
+    --
+    -- The knockdown is gone. It was built three ways - BumpFall by hand, then
+    -- the engine's LungeState - and none held: the hand-rolled fall left the
+    -- player stuck in an animation with no exit, and LungeState throws
+    -- "Forward Direction cannot be zero length vector" every frame on a prone
+    -- zombie, which is what froze the game on spawn. Biting ankles needs none
+    -- of that machinery and is nastier to walk into.
     mimic = {
         mode = "dormant",
+        -- Only at arm's length: it is scenery until stepped on.
         wakeDist = 1.5,
-        -- Goes back to playing dead once the player is well away again.
-        sleepDist = 12,
-        -- It stays on the floor grabbing at ankles until it actually puts the
-        -- player down. Only then does it get up.
-        floorRange = 2.0,
-        grabIntervalTicks = 45,
-        -- Bites and scratches are suppressed while it is down: it is meant to
-        -- trip you, not to nibble your arm from the floor.
-        grabOnly = true,
+        -- And back to scenery as soon as the player is clear.
+        sleepDist = 4,
+        -- Never stands, whatever happens.
+        biteIntervalTicks = 75,
+        -- Reach for an ankle, a little past waking distance so backing off one
+        -- step is enough to be safe.
+        biteRange = 1.6,
+        -- One bite in five. The rest tear rather than break the skin - still
+        -- bleeding, still an infection risk, but not the death sentence.
+        biteChance = 20,
+        -- Held inert every tick while dormant, for the same reason.
+        holdStill = true,
+        -- And now and then it takes the leg out from under them.
+        tripChance = 25,
     },
 
     -- Throws acid at range. The pools are the threat, not the zombie.

@@ -40,6 +40,8 @@ SZedPlus.Keys = {
     formRoot        = "SZedPlus_formRoot",
     formFloored     = "SZedPlus_formFloored",
     formBottle      = "SZedPlus_formBottle",
+    formLastLog     = "SZedPlus_formLastLog",
+    formLunge       = "SZedPlus_formLunge",
 }
 
 --- The four T3-T4 specialisation paths.

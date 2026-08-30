@@ -43,15 +43,35 @@ local function holdSteadfast()
     for index = 1, steadfastCount do
         local zombie = steadfast[index]
         if zombie ~= nil and zombie:getSquare() ~= nil and not zombie:isDead() then
-            pcall(function()
-                zombie:setUnbalancedLevel(0.0)
-                zombie:setStaggerBack(false)
-                if zombie:isKnockedDown() then
-                    zombie:setKnockedDown(false)
-                    zombie:setCrawler(false)
-                    zombie:setFallOnFront(false)
-                end
-            end)
+            local data = zombie:getModData()
+            local rule = SZedPlus.Forms.get(data[Keys.form])
+
+            if rule and rule.holdStill and data[Keys.formTriggered] ~= true then
+                -- Held every tick, not every sweep.
+                --
+                -- The sweep runs every six ticks, which is far too coarse to
+                -- hold anything: a sprinter crosses real ground in six frames
+                -- and the engine re-acquires its target long before the next
+                -- pass clears it. That is why the Stalker kept charging however
+                -- its freeze was written, and why a dormant Mimic still noticed
+                -- players and started crawling. The Colossus was held per tick
+                -- from the start, which is exactly why it always worked.
+                pcall(function()
+                    zombie:setTarget(nil)
+                    zombie:clearAggroList()
+                    zombie:setCanWalk(false)
+                end)
+            elseif rule and rule.noStagger then
+                pcall(function()
+                    zombie:setUnbalancedLevel(0.0)
+                    zombie:setStaggerBack(false)
+                    if zombie:isKnockedDown() then
+                        zombie:setKnockedDown(false)
+                        zombie:setCrawler(false)
+                        zombie:setFallOnFront(false)
+                    end
+                end)
+            end
             remainingCount = remainingCount + 1
             remaining[remainingCount] = zombie
         end
@@ -139,16 +159,106 @@ end
 --- Dot product between where the player faces and the direction to the zombie.
 --- Both vectors normalised, so the result is the cosine of the angle between
 --- them: 1 is dead ahead, 0 is straight out to the side, -1 is directly behind.
-local function isWatchedBy(zombie, player, halfAngleDegrees)
-    local fx, fy = player:getForwardDirectionX(), player:getForwardDirectionY()
-    if fx == nil or fy == nil then return false end
+--- Knock a player off their feet, the way the engine does it.
+---
+--- All four calls are needed. BumpFall on its own starts nothing: the bump type
+--- and clearing BumpDone are what let the animation begin.
+---
+--- BumpFallType takes "pushedFront" or "pushedBehind" and nothing else - those
+--- are the only two the animation sets define. "pushedBack" looked reasonable,
+--- is not one of them, and left the player in a bump with no state to leave by:
+--- frozen for good, session unplayable. Do not invent a third.
+--- Put a player on the ground.
+---
+--- `fromBehind` is where the blow came from, which is what BumpFallType names:
+--- pushed in the back means falling forwards, pushed in the chest means going
+--- over backwards. Getting that backwards is what made the Colossus drop
+--- players onto their face when they were looking straight at it.
+local function knockDownPlayer(player, fromBehind)
+    if player == nil then return end
+    pcall(function()
+        player:setBumpType("stagger")
+        player:setVariable("BumpDone", false)
+        player:setVariable("BumpFall", true)
+        player:setVariable("BumpFallType",
+            fromBehind and "pushedBehind" or "pushedFront")
+    end)
+end
+
+--- Log a state change once, not on every sweep that reasserts it.
+---
+--- A Mimic flipping between two states wrote twenty lines a second and the
+--- game stuttered badly enough that aiming stopped working. The loop is fixed,
+--- but a log that can only fire on an actual change cannot cause that again.
+local function logOnce(data, message)
+    if data[Keys.formLastLog] == message then return end
+    data[Keys.formLastLog] = message
+    SZedPlus.log("%s", message)
+end
+
+--- Is the zombie inside the player's vision cone?
+---
+--- Measured from the direction the player's sprite faces, not from a forward
+--- vector. getDotWithForwardDirection reported a steady -0.2 to -0.3 while the
+--- player looked straight at the zombie, where +1 was expected - it does not
+--- describe where the character is looking. getDir() does: it is the eight-way
+--- facing drawn on screen, so it agrees with what the player believes they can
+--- see, which is the only thing that matters for a form built on being watched.
+---
+--- Eight-way is coarse, and that is fine: a 45-degree step either way is well
+--- inside the cone the rule asks for.
+local FACING = {
+    N  = {  0, -1 }, NE = {  1, -1 }, E  = {  1,  0 }, SE = {  1,  1 },
+    S  = {  0,  1 }, SW = { -1,  1 }, W  = { -1,  0 }, NW = { -1, -1 },
+}
+
+local function facingVector(character)
+    local name = nil
+
+    -- By name, not by comparing the enum values.
+    --
+    -- `dir == IsoDirections.N` looked right and could never be trusted: Kahlua
+    -- compares those by identity, and a value coming back from Java need not be
+    -- the same object as the one read off the global table. When it silently
+    -- matched nothing, facingVector returned nil, every check answered "not
+    -- watched", and the Stalker sprinted no matter how the freeze was written.
+    -- tostring() on a Java enum gives its name, which is stable.
+    pcall(function() name = tostring(character:getDir()) end)
+    if name == nil then return nil end
+
+    SZedPlus.watchFacing = name
+    local vector = FACING[name]
+    if vector == nil then return nil end
+
+    local fx, fy = vector[1], vector[2]
+    local scale = math.sqrt(fx * fx + fy * fy)
+    return fx / scale, fy / scale
+end
+
+--- Is the zombie in front of the player, rather than behind them?
+local function isInFrontOf(zombie, player)
+    local fx, fy = facingVector(player)
+    if fx == nil then return false end
 
     local dx = zombie:getX() - player:getX()
     local dy = zombie:getY() - player:getY()
     local length = math.sqrt(dx * dx + dy * dy)
     if length < 0.001 then return true end
 
+    return (fx * dx + fy * dy) / length > 0
+end
+
+local function isWatchedBy(zombie, player, halfAngleDegrees)
+    local dx = zombie:getX() - player:getX()
+    local dy = zombie:getY() - player:getY()
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length < 0.001 then return true end
+
+    local fx, fy = facingVector(player)
+    if fx == nil then return false end
+
     local cosine = (fx * dx + fy * dy) / length
+    SZedPlus.watchDot = cosine
     return cosine >= math.cos(math.rad(halfAngleDegrees))
 end
 
@@ -193,10 +303,17 @@ local function runAmbush(zombie, rule, data, player, distance)
             and distance > rule.teleportDist * rule.teleportDist
             and not isWatchedBy(zombie, player, 70) then
 
-            local fx = player:getForwardDirectionX() or 0
-            local fy = player:getForwardDirectionY() or 0
+            -- getForwardDirection() returns a Vector2. The X/Y getters used
+            -- before are equally valid; this form just avoids assuming which
+            -- of the two the class offers.
+            local fx, fy = 0, 0
+            pcall(function()
+                local forward = player:getForwardDirection()
+                fx, fy = forward:getX(), forward:getY()
+            end)
+
             local behind = rule.teleportBehind or 15
-            if relocate(zombie,
+            if (fx ~= 0 or fy ~= 0) and relocate(zombie,
                 player:getX() - fx * behind,
                 player:getY() - fy * behind,
                 player:getZ()) then
@@ -238,7 +355,40 @@ end
 --- recoil animation but not the fall. `unbalancedLevel` is what builds up to a
 --- knockdown, so it is zeroed every sweep, and `alwaysKnockedDown` is cleared
 --- in case something set it.
-local function runUnstoppable(zombie, rule)
+local function runUnstoppable(zombie, rule, data, player, distance)
+    -- Gets you on the ground first, then feeds.
+    --
+    -- Waiting for getAttackDidDamage put the knockdown half a second after the
+    -- blow, which read as a delayed reaction rather than a shove: the flag only
+    -- appears once the swing has resolved. Tripping on arrival instead makes it
+    -- the opener - you go down, and then it is on top of you, which is what a
+    -- wall of flesh reaching you should feel like.
+    if rule.floorOnHit and player and distance
+        and distance <= (rule.hitRange or 1.6) ^ 2 then
+
+        local cooldown = (data[Keys.formCooldown] or 0) - SWEEP_INTERVAL_TICKS
+        if cooldown > 0 then
+            data[Keys.formCooldown] = cooldown
+        else
+            -- Only worth doing to someone still on their feet. Once they are
+            -- down it just attacks, and they get the room to stand up again.
+            local standing = false
+            pcall(function() standing = not player:isKnockedDown() end)
+            if standing then
+                data[Keys.formCooldown] = rule.floorCooldownTicks or (5 * 60)
+                -- BumpFallType names where the push COMES FROM, not where you
+                -- land: "pushedBehind" is a shove in the back, so you go over
+                -- forwards. Facing it therefore has to send "pushedFront".
+                --
+                -- Which also settles shoving it: you have to be facing
+                -- something to shove it, so that case falls out of the same
+                -- rule rather than needing one of its own.
+                knockDownPlayer(player, not isInFrontOf(zombie, player))
+                SZedPlus.log("colossus floored the player")
+            end
+        end
+    end
+
     if not rule.noStagger then return end
 
     pcall(function()
@@ -359,8 +509,7 @@ local function runBomb(zombie, rule, data, player, distance)
                     pcall(function()
                         nearby:getBodyDamage():getBodyParts():get(0)
                             :AddDamage(rule.blastDamage or 40.0)
-                        nearby:setVariable("BumpFall", true)
-                        nearby:setVariable("BumpFallType", "pushedFront")
+                        knockDownPlayer(nearby)
                     end)
                 end
             end
@@ -420,29 +569,57 @@ local function runStalk(zombie, rule, data, player, distance)
         zombie:setTarget(nil)
         zombie:clearAggroList()
         pcall(function() zombie:setCanWalk(true) end)
+        logOnce(data, "stalker out of range")
         return
     end
 
     -- Close enough that freezing would be absurd: it commits.
+    --
+    -- This branch was silent, and it is the one a debug spawn lands in: a
+    -- zombie placed a couple of tiles away is already inside commitDist, so it
+    -- charges whatever the player is looking at - which looks exactly like the
+    -- freeze never working.
     if distance <= rule.commitDist * rule.commitDist then
         pcall(function() zombie:setCanWalk(true) end)
         chase(zombie, player)
+        logOnce(data, string.format("stalker committed (%.1f tiles, commit at %.1f)",
+            math.sqrt(distance), rule.commitDist))
         data[Keys.formTriggered] = true
         return
     end
 
     if isWatchedBy(zombie, player, rule.visionAngle) then
-        -- Watched: stop completely. Keeping the target would leave it edging
-        -- forward, which is exactly what gives the trick away.
-        pcall(function() zombie:setCanWalk(false) end)
-        zombie:setTarget(nil)
+        -- Watched: stop dead. Nothing else - no turning, no wandering.
+        --
+        -- Walking away was tried and cannot be built: a zombie is driven by its
+        -- target and nothing else, so pathToLocationF is ignored with one and
+        -- does nothing without one, and Wander() did not move it either. This
+        -- is the coil-head rule instead, and it only needs the zombie to hold
+        -- still, which is the one thing that always works.
+        pcall(function()
+            zombie:setCanWalk(false)
+            zombie:setTarget(nil)
+            zombie:clearAggroList()
+        end)
+
+        logOnce(data, string.format("stalker frozen (facing %s, dot %.2f, need %.2f)",
+            SZedPlus.watchFacing or "?", SZedPlus.watchDot or -9,
+            math.cos(math.rad(rule.visionAngle))))
         data[Keys.formTriggered] = false
         return
     end
 
     -- Unwatched: close the distance, fast.
+    --
+    -- chase() re-aggros from scratch every sweep, so looking away always brings
+    -- it back. It cannot lose you permanently by having been seen once, which
+    -- is what clearing the aggro list on its own would have caused.
+    enforceWalkType(zombie, rule.forceWalkType)
     pcall(function() zombie:setCanWalk(true) end)
     chase(zombie, player)
+    logOnce(data, string.format("stalker sprinting (facing %s, dot %.2f, need %.2f)",
+        SZedPlus.watchFacing or "?", SZedPlus.watchDot or -9,
+        math.cos(math.rad(rule.visionAngle))))
     data[Keys.formTriggered] = true
 end
 
@@ -455,99 +632,94 @@ end
 ---   upright  - the player went down, so it does too... upwards
 local function runDormant(zombie, rule, data, player, distance)
     local awake = data[Keys.formTriggered]
-    local floored = data[Keys.formFloored]
+
+    -- Always a crawler, but only told so when it is not one already.
+    -- Re-asserting it on every sweep restarted the change each time and its
+    -- movement came out stuttering.
+    pcall(function()
+        if not zombie:isCrawling() then zombie:setCrawler(true) end
+    end)
 
     -- Dormant: flat and inert until something stands on it.
     if not awake then
         pcall(function()
-            zombie:setCrawler(true)
             zombie:knockDown(false)
             zombie:setCanWalk(false)
+            zombie:setTarget(nil)
+            zombie:clearAggroList()
         end)
-        zombie:setTarget(nil)
-        zombie:clearAggroList()
 
         if player and distance and distance <= rule.wakeDist * rule.wakeDist then
             data[Keys.formTriggered] = true
-            SZedPlus.log("mimic woke")
+            chase(zombie, player)
+            logOnce(data, "mimic woke")
         end
         return
     end
 
-    -- Lost the player: back down, and stay down. Not merely dormant - it does
-    -- not shuffle off looking for anyone.
+    -- Lost them: back to scenery.
     if player == nil or distance == nil
         or distance > rule.sleepDist * rule.sleepDist then
         data[Keys.formTriggered] = nil
-        data[Keys.formFloored] = nil
+        data[Keys.formCooldown] = nil
         pcall(function()
-            zombie:setCrawler(true)
             zombie:setCanWalk(false)
+            zombie:setTarget(nil)
+            zombie:clearAggroList()
         end)
-        zombie:setTarget(nil)
-        zombie:clearAggroList()
-        SZedPlus.log("mimic went dormant")
+        logOnce(data, "mimic went dormant")
         return
     end
 
-    -- Already brought the player down: get up and fight normally.
-    if floored then
-        pcall(function()
-            zombie:setCrawler(false)
-            zombie:setCanWalk(true)
-            zombie:setUseless(false)
-        end)
-        chase(zombie, player)
-        return
-    end
-
-    -- Still on the floor, grabbing at whatever comes close. It crawls after
-    -- the player rather than standing, which is the whole idea.
-    --
-    -- setUseless stops it biting and scratching while it is down: it was
-    -- clawing at an arm from the floor, which made no sense and let it stand up
-    -- on a hit that was never meant to count.
-    pcall(function()
-        zombie:setCrawler(true)
-        zombie:setCanWalk(true)
-        if rule.grabOnly then zombie:setUseless(true) end
-    end)
+    -- Awake: crawl after them, still on the floor.
+    pcall(function() zombie:setCanWalk(true) end)
     chase(zombie, player)
 
-    if distance > rule.floorRange * rule.floorRange then return end
+    if distance > rule.biteRange * rule.biteRange then return end
 
     local cooldown = (data[Keys.formCooldown] or 0) - SWEEP_INTERVAL_TICKS
     if cooldown > 0 then
         data[Keys.formCooldown] = cooldown
         return
     end
-    data[Keys.formCooldown] = rule.grabIntervalTicks
+    data[Keys.formCooldown] = rule.biteIntervalTicks or 75
 
-    -- Try to take them down. Fitness resists: a strong survivor shrugs off
-    -- more attempts before going over.
-    local fitness = 5
+    -- Bite an ankle. Which one is picked at random, so repeated attacks spread
+    -- rather than stacking on the same part.
+    local parts = { "Foot_L", "Foot_R", "LowerLeg_L", "LowerLeg_R" }
+    local partName = parts[ZombRand(#parts) + 1]
+    local bite = ZombRand(100) < (rule.biteChance or 20)
+
     pcall(function()
-        fitness = player:getPerkLevel(Perks.Fitness) or 5
+        local part = player:getBodyDamage():getBodyPart(BodyPartType[partName])
+        if part == nil then return end
+
+        if bite then
+            part:SetBitten(true, true)
+        else
+            -- The tearing wound: bleeds, hurts, and carries the same infection
+            -- risk a zombie's claws always do - just not the certainty a bite
+            -- brings.
+            part:setScratched(true, true)
+        end
     end)
 
-    -- 10 fitness resists most attempts, 0 almost none.
-    if ZombRand(10) >= fitness then
-        data[Keys.formFloored] = true
-        pcall(function()
-            player:setVariable("BumpFall", true)
-            player:setVariable("BumpFallType", "pushedBack")
-            player:fallenOnKnees()
-        end)
-        SZedPlus.log("mimic floored the player (fitness %d)", fitness)
-    else
-        SZedPlus.log("mimic grab resisted (fitness %d)", fitness)
+    -- And sometimes it takes the leg out from under them. The same knockdown
+    -- the Boomer's blast uses - which does work; the earlier attempts here
+    -- never reached it, because LungeState returned successfully and only threw
+    -- later, so the fallback that would have called this was skipped.
+    if ZombRand(100) < (rule.tripChance or 0) then
+        -- Forwards: it has hold of an ankle, so the player goes over the front.
+        knockDownPlayer(player, false)
+        SZedPlus.log("mimic %s the player's %s and tripped them",
+            bite and "bit" or "lacerated", partName)
+        return
     end
+
+    SZedPlus.log("mimic %s the player's %s",
+        bite and "bit" or "lacerated", partName)
 end
 
---- Spitter: keeps its distance and throws acid at the player's feet.
----
---- It aims slightly ahead of where the player stands, so walking into it is the
---- mistake rather than standing still.
 local function runSpitter(zombie, rule, data, player, distance)
     if player == nil or distance == nil then return end
     if distance > rule.triggerDist * rule.triggerDist then
@@ -692,7 +864,7 @@ function SZedPlus.FormBehaviour.track(zombie)
     tracked[trackedCount] = zombie
 
     local rule = SZedPlus.Forms.get(data[Keys.form])
-    if rule and rule.noStagger then
+    if rule and (rule.noStagger or rule.holdStill) then
         steadfastCount = steadfastCount + 1
         steadfast[steadfastCount] = zombie
     end

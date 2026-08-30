@@ -14,6 +14,25 @@
 --- exactly the "sit on the floor, not above it" behaviour that was missing. A
 --- marker is placed once and left alone, so there is no per-frame work either.
 ---
+--- Drawn with the engine's own untextured marker, one per tile.
+---
+--- Two richer approaches were tried and dropped, recorded so they are not
+--- attempted a third time.
+---
+--- A textured marker cannot work: GridSquareMarker resolves a name through
+--- IsoSpriteManager.getSprite(), which calls AddSprite() on a miss, and a sprite
+--- built that way ignores its texture's alpha - the marker draws a solid
+--- diamond. Vanilla's own "circle_orb" produced the same diamond, which settled
+--- it: the fault was never in our artwork.
+---
+--- IsoObject on the square, the way the engine places its own floor blood, gets
+--- the geometry right but not the colour: setCustomColor() had no visible effect
+--- either before or after AddTileObject, so pools rendered blood red, and the
+--- splats sat off the tiles they were added to.
+---
+--- What is left works everywhere: the plain marker, one per tile, tinted acid
+--- green. Modest, correctly placed, immune to zoom.
+---
 --- Client-side by definition - the server owns where the pools are, this only
 --- shows them. In single player the server code runs in this same process and
 --- pushes them directly.
@@ -21,58 +40,11 @@
 SZedPlus = SZedPlus or {}
 SZedPlus.AcidRender = {}
 
---- The marker takes a bare NAME, and the file has to live in one exact folder.
----
---- WorldMarkers$GridSquareMarker.init builds its path from a string-concat
---- recipe that is in the class constant pool in full:
----     'media/textures/highlights/.png'
---- so it does getSharedTexture("media/textures/highlights/" .. name .. ".png"),
---- with "circle_center" as its default. No directory and no extension in the
---- name, and the PNG must sit in media/textures/highlights/ - our mod's copy of
---- that folder merges with the game's.
----
---- Two earlier guesses failed here, both because the check did not match what
---- init actually does. Handed an absolute disk path, getSharedTexture() returns
---- a texture quite happily, so the name looked valid and the marker still threw
----   NullPointerException: Cannot invoke "Texture.getWidth()" because "tex" is
----   null at WorldMarkers$GridSquareMarker.init
---- The lesson: verify a name by performing the *engine's* lookup, not a lookup
---- that merely resembles it. nameWorks() below builds the same path init does.
----
---- Sprite names are a flat global namespace shared with every other mod, hence
---- the prefixed filename.
---- Which artwork the pool is drawn with.
----
---- "circle_orb" is vanilla's, already in media/textures/highlights/. It is set
---- here deliberately, and it is a test as much as a default.
----
---- The custom splat renders as a solid diamond however it is authored. It now
---- matches vanilla's marker artwork on every property that can be measured -
---- RGBA, white RGB under the transparent pixels, not premultiplied, 512x256 -
---- so the difference is no longer in the file. The remaining suspect is the
---- sprite: ours is created on demand by IsoSpriteManager.AddSprite, while
---- vanilla's may be registered at boot with blend flags a bare IsoSprite does
---- not get.
----
---- circle_orb settles it, because it is a loose PNG in that folder too and so
---- takes the same AddSprite path:
----   * it renders as an orb  -> the code path is fine, the fault is in our PNG
----   * it renders as a diamond -> auto-created sprites do not blend, and no
----     custom texture can work here whatever we do to the file
----
---- Either way the pool looks right in the meantime: a soft round orb tinted
---- acid green is a perfectly good pool.
-local TEXTURE_NAME = "circle_orb"
-
---- The custom splat, kept for when the question above is answered.
-local CUSTOM_TEXTURE_NAME = "SZedPlus_AcidPool"
-
---- Where the engine will look for it, and so where the file must be.
-local TEXTURE_DIR = "media/textures/highlights/"
-
---- Acid green, for the shapes with no artwork of their own - the accessibility
---- outline and the plain fallback marker.
+--- Acid green, for the pool itself and for the accessibility outline.
 local TINT_R, TINT_G, TINT_B = 0.55, 0.95, 0.25
+
+--- Fluorescent green, so the debug footprint cannot be mistaken for the pool.
+local DEBUG_R, DEBUG_G, DEBUG_B = 0.1, 1.0, 0.1
 
 --- `size` is a DIAMETER in tiles, not a radius.
 ---
@@ -80,9 +52,6 @@ local TINT_R, TINT_G, TINT_B = 0.55, 0.95, 0.25
 --- and the sprite is drawn at texture width * scaleRatio * size - which comes to
 --- 64 * tileScale * size, and 64 * tileScale is exactly one tile. So size 1.0
 --- covers one tile across, and a pool of radius r needs 2r.
----
---- Passing the radius straight through drew every zone at half the width it
---- damages, which is the wrong half to be wrong on.
 local DIAMETER = 2.0
 
 --- Trim on the accessibility outline.
@@ -94,60 +63,18 @@ local DIAMETER = 2.0
 --- the safer way to be approximate.
 local OUTLINE_TRIM = 0.9
 
---- Live markers, keyed by the pool id the server side assigns.
+--- Live markers, keyed by the pool id the server side assigns: pool id -> array
+--- of markers, one per tile the pool covers.
 local markers = {}
 
---- Accessibility outlines, keyed the same way: an optional plain circle drawn
---- over the splat, marking exactly how far the pool reaches.
+--- Accessibility outlines, keyed the same way: an optional plain circle marking
+--- exactly how far the pool reaches.
 local circles = {}
 local circlesWereOn = false
 
---- Debug footprint markers, keyed the same way: pool id -> array of markers,
---- one per tile the pool actually damages.
+--- Debug footprint markers, keyed the same way.
 local overlays = {}
 local overlayWasOn = false
-
---- Fluorescent green, so the footprint cannot be mistaken for the pool itself.
-local DEBUG_R, DEBUG_G, DEBUG_B = 0.1, 1.0, 0.1
-
--- ---------------------------------------------------------------- texture --
-
-local resolvedName = nil
-local resolveFailed = false
-
---- Exactly the lookup GridSquareMarker.init performs.
-local function nameWorks(name)
-    if name == nil or name == "" then return false end
-    local texture = nil
-    pcall(function()
-        texture = Texture.getSharedTexture(TEXTURE_DIR .. name .. ".png")
-    end)
-    return texture ~= nil
-end
-
-local function resolveTextureName()
-    if resolvedName then return resolvedName end
-    if resolveFailed then return nil end
-
-    -- Seed the cache: a mod texture is loaded on demand, and the shared lookup
-    -- only finds what has already been loaded.
-    pcall(function() getTexture(TEXTURE_DIR .. TEXTURE_NAME .. ".png") end)
-    pcall(function() getTexture(TEXTURE_DIR .. CUSTOM_TEXTURE_NAME .. ".png") end)
-
-    for _, name in ipairs({ TEXTURE_NAME, TEXTURE_NAME:lower() }) do
-        if nameWorks(name) then
-            resolvedName = name
-            SZedPlus.log("acid texture resolved as '%s' (%s%s.png)",
-                name, TEXTURE_DIR, name)
-            return resolvedName
-        end
-    end
-
-    SZedPlus.log("no marker texture at %s%s.png; using the engine's plain marker",
-        TEXTURE_DIR, TEXTURE_NAME)
-    resolveFailed = true
-    return nil
-end
 
 -- ---------------------------------------------------------------- markers --
 
@@ -180,73 +107,131 @@ local function footprintSquares(pool)
     return squares
 end
 
---- Draw a pool as one marker per tile it covers.
----
---- Not one big marker: that was a running fight with the engine's geometry. A
---- single marker had to be sized in tiles from a radius, which meant getting
---- the diameter conversion right; it had to be drawn from artwork authored for
---- the whole footprint; and at six tiles across it was clipped at chunk
---- boundaries, which is what made it appear to crop as the camera moved.
----
---- Per tile, every one of those goes away. size 1.0 is exactly one tile by
---- definition, so there is no conversion to get wrong; the shape follows the
---- damage footprint because it IS the damage footprint, computed by the same
---- test; and each quad is one tile, far too small to straddle a chunk.
----
---- Slightly over one tile so neighbours overlap and read as one spill rather
---- than a grid of separate blobs. Kept modest: the artwork carries its own soft
---- edge, and too much overlap merges the tiles back into a solid mass - which
---- is what a generated mask covering 98% of its frame produced, and why the
---- pools drew as filled diamonds.
+--- Slightly over one tile so neighbours overlap into one spill rather than a
+--- grid of separate discs. Only used by the fallback.
 local TILE_OVERLAP = 1.15
 
-local function addMarker(pool)
+--- Our own splat, registered as a sprite and placed as a tile object.
+---
+--- This is the one route left that can show custom artwork. The marker's
+--- textured overload cannot (its sprite ignores alpha), and vanilla's blood
+--- sprites placed as tile objects came out red because setCustomColor had no
+--- effect. Registering OUR texture sidesteps both: nothing needs tinting,
+--- because the artwork is already the right colour.
+local SPRITE_PATH = "media/textures/SZedPlus/SZedPlus_AcidPool.png"
+local SPLAT_FLAG = "SZedPlus_acid"
+
+--- Tells this session's splats from ones left in the save by an earlier one.
+---
+--- The cleanup below cannot just remove everything carrying the flag: a chunk
+--- that streams back in while a pool is live would have its splats deleted, and
+--- the pool then covered only the tiles whose squares never reloaded. Stamping
+--- the session makes "left over from before" answerable.
+local SESSION = tostring(getTimestampMs and getTimestampMs() or os.time())
+
+local spriteReady = nil
+
+--- Register the sprite once, and say what was found.
+---
+--- The size report is the point: a tile object draws its sprite at native size,
+--- so if the splat comes out too big or too small the vanilla figure printed
+--- beside ours says exactly what to author it at, instead of another guess.
+local function ensureSprite()
+    if spriteReady ~= nil then return spriteReady end
+
+    spriteReady = false
+    pcall(function()
+        local ours = getTexture(SPRITE_PATH)
+        if ours == nil then
+            SZedPlus.logError("acid texture missing: %s", SPRITE_PATH)
+            return
+        end
+
+        IsoSpriteManager.instance:AddSprite(SPRITE_PATH)
+        spriteReady = true
+
+        local reference = getTexture("blood_floor_med_01")
+        SZedPlus.log("acid sprite %dx%d (vanilla blood_floor_med_01 is %s)",
+            ours:getWidth(), ours:getHeight(),
+            reference and (reference:getWidth() .. "x" .. reference:getHeight())
+                       or "unavailable")
+    end)
+
+    return spriteReady
+end
+
+--- Draw a pool as one splat per tile it covers.
+local function addSplats(pool)
     local squares = footprintSquares(pool)
     if #squares == 0 then return nil end
 
-    local name = resolveTextureName()
+    local textured = ensureSprite()
     local placed = {}
 
     for _, square in ipairs(squares) do
-        local marker = nil
+        local thing = nil
 
-        -- Preferred: our own splat. A nil overlay name is not allowed - the
-        -- engine looks that one up too, and the null it gets back is the
-        -- NullPointerException thrown from inside addGridSquareMarker.
-        if name then
+        if textured then
             pcall(function()
-                marker = getWorldMarkers():addGridSquareMarker(
-                    name, name, square,
-                    TINT_R, TINT_G, TINT_B,
-                    true,               -- useGroundDepth: lie on the floor
-                    TILE_OVERLAP)
+                local object = IsoObject.new(square, SPRITE_PATH)
+                object:getModData()[SPLAT_FLAG] = SESSION
+                square:AddTileObject(object)
+                thing = object
             end)
-            if marker == nil then
-                SZedPlus.logError("texture '%s' rejected by the marker", name)
-                resolvedName, resolveFailed = nil, true
-                name = nil
-            end
         end
 
-        -- Fallback: the engine's own marker, no texture. Placed by the same
-        -- code that places every other marker in the game, so it cannot go
-        -- missing.
-        if marker == nil then
+        -- Fallback: the engine's plain marker. Correctly placed and immune to
+        -- zoom, just a disc rather than a splat.
+        if thing == nil then
             pcall(function()
-                marker = getWorldMarkers():addGridSquareMarker(
+                thing = getWorldMarkers():addGridSquareMarker(
                     square, TINT_R, TINT_G, TINT_B, true, TILE_OVERLAP)
             end)
         end
 
-        if marker then placed[#placed + 1] = marker end
+        if thing then placed[#placed + 1] = thing end
     end
 
     if #placed == 0 then
-        SZedPlus.logError("could not place acid markers at %.1f,%.1f", pool.x, pool.y)
+        SZedPlus.logError("could not place acid at %.1f,%.1f", pool.x, pool.y)
         return nil
     end
     return placed
 end
+
+--- Take one splat back, whichever kind it turned out to be.
+local function removeSplat(thing)
+    if thing == nil then return end
+    if not pcall(function() thing:removeFromSquare() end) then
+        removeMarker(thing)
+    end
+end
+
+--- Sweep a loading square for splats left behind by an earlier session.
+---
+--- A tile object is serialised with its chunk, so a pool present when the game
+--- saves would come back permanently. Pools are removed on expiry, but a green
+--- stain that never goes away is not a risk worth carrying.
+---
+--- Only splats stamped by an earlier session go: removing this session's too
+--- deleted live pools whenever their chunk reloaded, which is why some affected
+--- tiles ended up with no decal on them.
+local function onLoadGridsquare(square)
+    if square == nil then return end
+    pcall(function()
+        local objects = square:getObjects()
+        for index = objects:size() - 1, 0, -1 do
+            local object = objects:get(index)
+            local stamp = object and object.getModData
+                and object:getModData()[SPLAT_FLAG]
+            if stamp and stamp ~= SESSION then
+                object:removeFromSquare()
+            end
+        end
+    end)
+end
+
+Events.LoadGridsquare.Add(onLoadGridsquare)
 
 -- ------------------------------------------------------- accessibility --
 
@@ -258,15 +243,14 @@ local function outlineEnabled()
     return SZedPlus.AcidRender.isOn("AcidSimpleZone")
 end
 
---- A plain circle over the pool, at exactly the pool's radius.
+--- A single circle over the pool, at exactly the pool's radius.
 ---
---- The engine's untextured marker, which is a filled disc with a bright rim -
---- the rim is the point, since the splat texture has soft edges and a player
---- cannot tell from it where the damage actually stops. Added on top of the
---- splat, never instead of it.
+--- The pool itself is drawn tile by tile with a deliberate overlap, so its
+--- outer edge is ragged and sits a little past where the damage stops. This one
+--- circle is drawn over that, at the true figure, for a player who needs to see
+--- the boundary rather than infer it. Added on top, never instead.
 local function addCircle(pool, square)
-    -- The true diameter, with no generosity applied: this is the honest edge of
-    -- the damage zone, which is exactly what the splat above it is not.
+    -- The true diameter, trimmed slightly: the honest edge of the damage zone.
     local marker = nil
     pcall(function()
         marker = getWorldMarkers():addGridSquareMarker(
@@ -339,10 +323,10 @@ end
 
 --- Highlight every tile the pool actually damages.
 ---
---- Deliberately recomputed from the pool's centre and radius rather than read
---- off the drawn texture: the whole point of the overlay is to show what the
---- damage check covers, so that it can be compared against what is drawn. If
---- the green tiles and the splat disagree, the splat is wrong.
+--- Recomputed from the pool's centre and radius: the point of the overlay is to
+--- show what the damage check covers, so it can be compared against what is
+--- drawn. Both now come from footprintSquares, so a disagreement would mean a
+--- real bug rather than a rendering approximation.
 ---
 --- A tile counts when its centre falls inside the radius, which is the same
 --- test the sweep applies to a player's position - a player standing in the
@@ -397,17 +381,11 @@ function SZedPlus.AcidRender.setPools(list)
         if id then
             seen[id] = true
 
-            local placed = markers[id]
-            if placed == nil then
-                placed = addMarker(pool)
-                markers[id] = placed
+            if markers[id] == nil then
+                markers[id] = addSplats(pool)
             end
 
-            for _, marker in ipairs(placed or {}) do
-                pcall(function() marker:setAlpha(pool.alpha or 0.8) end)
-            end
-
-            -- The outline goes on the same square, over the splat.
+            -- The outline goes on the square the pool started from.
             if outline and circles[id] == nil then
                 local square = getCell():getGridSquare(
                     math.floor(pool.x), math.floor(pool.y), math.floor(pool.z))
@@ -427,7 +405,7 @@ function SZedPlus.AcidRender.setPools(list)
     -- Anything no longer in the set has expired.
     for id, placed in pairs(markers) do
         if not seen[id] then
-            for _, marker in ipairs(placed or {}) do removeMarker(marker) end
+            for _, object in ipairs(placed or {}) do removeSplat(object) end
             markers[id] = nil
 
             if circles[id] then removeMarker(circles[id]) end
@@ -442,7 +420,7 @@ end
 --- outlive the pools they belong to.
 function SZedPlus.AcidRender.clear()
     for id, placed in pairs(markers) do
-        for _, marker in ipairs(placed or {}) do removeMarker(marker) end
+        for _, object in ipairs(placed or {}) do removeSplat(object) end
         markers[id] = nil
     end
     clearCircles()

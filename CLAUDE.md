@@ -236,6 +236,76 @@ Per tile, all three vanish: `size = 1.0` is one tile by definition, the drawn sh
 the same test computes both, and a one-tile quad cannot straddle a chunk. Draw each tile slightly over 1.0 (~1.4) so
 neighbours overlap into one shape instead of a grid of blobs.
 
+**A custom texture cannot be used with a grid-square marker.** Settled, do not retry without new evidence. The
+textured overload of `addGridSquareMarker` resolves its name through `IsoSpriteManager.getSprite()`, which calls
+`AddSprite()` on a miss - and a sprite built that way ignores its texture's alpha, so the marker draws as a solid
+diamond. This was chased through the artwork first (2:1 geometry, white RGB under the transparent pixels, no
+premultiplication - all matched against vanilla's own files) before the test that decided it: passing vanilla's own
+`circle_orb` produced the same solid diamond. The fault was never in the file. The lesson is cheaper than the
+investigation was: when something that ships with the engine works and your copy does not, run *their* asset through
+*your* code path before touching yours again.
+
+**A marker's `size` is a diameter in tiles, not a radius.** `GridSquareMarker` sets
+`scaleRatio = 64 * Core.tileScale / texture.getWidth()` and draws the sprite at `width * scaleRatio * size`, which
+comes to `64 * tileScale * size` - and `64 * tileScale` is exactly one tile. So `size = 1.0` spans one tile, and a
+circle of radius r needs `2r`. Passing a radius straight through draws every zone at half the width it covers.
+
+**Sandbox options cannot change during a game.** There is no engine event for "the sandbox options changed", and in
+single player there is no in-game editor writing back to `SandboxVars` either - so re-reading them is not enough, the
+values genuinely do not move until a restart. `SZedPlus.Config.reread(name)` re-reads one option now (useful on a
+server, where an admin can change them), and a periodic `refresh()` on `EveryTenMinutes` catches that case. But
+anything a player expects to toggle and see immediately needs a runtime override that takes precedence over the
+sandbox value - `SZedPlus.AcidRender.isOn()/toggle()` is the pattern, driven from the debug menu's Display submenu.
+
+**A zombie does not wear its clothes.** `getWornItems()` on an `IsoZombie` is empty - `IsoZombie` has
+`isUsingWornItems()` precisely because the normal answer is no. It carries `ItemVisual`s, and real `InventoryItem`s
+only materialise when the corpse is built. Every loop written against `getWornItems()` therefore ran zero times and
+reported success: the Boomer's two variants looked identical, and its blast logged "0 destroyed, 0 ruined" while
+leaving the suit pristine. Iterate `zombie:getItemVisuals()` instead (`setTint`, `setDirt`, `getItemType`), or use the
+character-level calls below.
+
+**Holes and blood go on the character, not on the visual.** `HumanVisual` has `getHole` but *no* `setHole` - the
+setter is on `ItemVisual`, one per garment - so `zombie:getHumanVisual():setHole(part)` is a silent no-op, and
+`HumanVisual:setBlood()` paints the skin, which is invisible under a hazmat suit. The working calls are
+`IsoGameCharacter:addHole(BloodBodyPartType)` and `addBlood(part, true, true, false)`; they find the covering garment
+themselves, carry over to the looted item, and are what vanilla's own `DamageModelDefinitions.OnHitZombie` uses.
+Call them ~3x per part, as vanilla does - one call barely shows. A hole asked for outside the garment's declared
+`BloodLocation` regions is dropped silently, so check the item script before picking parts.
+
+**`OnHitZombie` passes the zombie first, not the attacker.** The signature is `(zombie, wielder, bodyPart, weapon)`.
+Getting the first two the wrong way round means the guard asks `isZedPlus()` about the player, returns false, and
+every hit is dropped on the first line - with no error, and no log line to show the handler ever ran. Vanilla's
+handler in `media/lua/shared/Definitions/DamageModelDefinitions.lua` is the reference.
+
+**Do not project world coordinates by hand.** Drawing a ground effect with `isoToScreenX/Y` + `getRenderer():render()`
+means reproducing the engine's zoom *and* ground-depth handling; getting either slightly wrong shows up as the
+texture drifting across the ground as the camera zooms, and no amount of tweaking a Z or pixel offset fixes it.
+`getWorldMarkers():addGridSquareMarker(square, r, g, b, useGroundDepth, size)` is the engine doing it - placed once,
+correct at every zoom.
+
+The textured overload takes a **bare name**, and the file has to be in one exact folder.
+`WorldMarkers$GridSquareMarker.init` builds its path from a string-concat recipe sitting in the class constant pool
+in full - `'media/textures/highlights/.png'` - so it does
+`getSharedTexture("media/textures/highlights/" .. name .. ".png")`, defaulting to `"circle_center"`. No directory and
+no extension in the name, and the PNG must be in `media/textures/highlights/` (a mod's copy of that folder merges
+with the game's). Both the base and the overlay name are looked up, so passing `nil` for the overlay throws too.
+
+**Draw a ground area as one marker per tile, not one big marker.** A single large marker has to be sized in tiles from
+a radius (getting the diameter conversion below right), needs artwork authored for the whole footprint, and at more
+than a few tiles across is clipped at chunk boundaries - which looks like the texture cropping as the camera moves.
+Per tile, all three vanish: `size = 1.0` is one tile by definition, the drawn shape *is* the damage footprint because
+the same test computes both, and a one-tile quad cannot straddle a chunk. Draw each tile slightly over 1.0 (~1.4) so
+neighbours overlap into one shape instead of a grid of blobs.
+
+**A custom texture cannot be used with a grid-square marker.** Settled, do not retry without new evidence. The
+textured overload of `addGridSquareMarker` resolves its name through `IsoSpriteManager.getSprite()`, which calls
+`AddSprite()` on a miss - and a sprite built that way ignores its texture's alpha, so the marker draws as a solid
+diamond. This was chased through the artwork first (2:1 geometry, white RGB under the transparent pixels, no
+premultiplication - all matched against vanilla's own files) before the test that decided it: passing vanilla's own
+`circle_orb` produced the same solid diamond. The fault was never in the file. The lesson is cheaper than the
+investigation was: when something that ships with the engine works and your copy does not, run *their* asset through
+*your* code path before touching yours again.
+
 **A marker's `size` is a diameter in tiles, not a radius.** `GridSquareMarker` sets
 `scaleRatio = 64 * Core.tileScale / texture.getWidth()` and draws the sprite at `width * scaleRatio * size`, which
 comes to `64 * tileScale * size` - and `64 * tileScale` is exactly one tile. So `size = 1.0` spans one tile, and a
