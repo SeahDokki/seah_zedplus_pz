@@ -41,18 +41,34 @@ SZedPlus.AcidRender = {}
 ---
 --- Sprite names are a flat global namespace shared with every other mod, hence
 --- the prefixed filename.
-local TEXTURE_NAME = "SZedPlus_AcidPool"
+--- Which artwork the pool is drawn with.
+---
+--- "circle_orb" is vanilla's, already in media/textures/highlights/. It is set
+--- here deliberately, and it is a test as much as a default.
+---
+--- The custom splat renders as a solid diamond however it is authored. It now
+--- matches vanilla's marker artwork on every property that can be measured -
+--- RGBA, white RGB under the transparent pixels, not premultiplied, 512x256 -
+--- so the difference is no longer in the file. The remaining suspect is the
+--- sprite: ours is created on demand by IsoSpriteManager.AddSprite, while
+--- vanilla's may be registered at boot with blend flags a bare IsoSprite does
+--- not get.
+---
+--- circle_orb settles it, because it is a loose PNG in that folder too and so
+--- takes the same AddSprite path:
+---   * it renders as an orb  -> the code path is fine, the fault is in our PNG
+---   * it renders as a diamond -> auto-created sprites do not blend, and no
+---     custom texture can work here whatever we do to the file
+---
+--- Either way the pool looks right in the meantime: a soft round orb tinted
+--- acid green is a perfectly good pool.
+local TEXTURE_NAME = "circle_orb"
+
+--- The custom splat, kept for when the question above is answered.
+local CUSTOM_TEXTURE_NAME = "SZedPlus_AcidPool"
 
 --- Where the engine will look for it, and so where the file must be.
 local TEXTURE_DIR = "media/textures/highlights/"
-
---- The splat is drawn as authored - the artwork carries its own colour.
----
---- An earlier neutral tint came out black, but that was the texture's fault,
---- not the marker's: it had black RGB under its transparent pixels. Vanilla's
---- own marker artwork is white there and is not premultiplied, and the acid
---- texture now follows the same convention.
-local SPLAT_R, SPLAT_G, SPLAT_B = 1.0, 1.0, 1.0
 
 --- Acid green, for the shapes with no artwork of their own - the accessibility
 --- outline and the plain fallback marker.
@@ -116,6 +132,7 @@ local function resolveTextureName()
     -- Seed the cache: a mod texture is loaded on demand, and the shared lookup
     -- only finds what has already been loaded.
     pcall(function() getTexture(TEXTURE_DIR .. TEXTURE_NAME .. ".png") end)
+    pcall(function() getTexture(TEXTURE_DIR .. CUSTOM_TEXTURE_NAME .. ".png") end)
 
     for _, name in ipairs({ TEXTURE_NAME, TEXTURE_NAME:lower() }) do
         if nameWorks(name) then
@@ -200,7 +217,7 @@ local function addMarker(pool)
             pcall(function()
                 marker = getWorldMarkers():addGridSquareMarker(
                     name, name, square,
-                    SPLAT_R, SPLAT_G, SPLAT_B,
+                    TINT_R, TINT_G, TINT_B,
                     true,               -- useGroundDepth: lie on the floor
                     TILE_OVERLAP)
             end)
