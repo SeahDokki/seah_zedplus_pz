@@ -12,7 +12,9 @@ import re
 import sys
 
 ROOT = "SZedPlus/42/media/lua/shared/Translate"
-LANGS = ("EN", "FR", "ES", "DE")
+# CN is Simplified Chinese, contributed by a player. Vanilla uses CN for
+# Simplified and CH for Traditional - do not swap them.
+LANGS = ("EN", "FR", "ES", "DE", "CN")
 
 OPT_TRANSLATION = re.compile(r"^\s*translation\s*=\s*(\w+)\s*,", re.M)
 OPT_PAGE = re.compile(r"^\s*page\s*=\s*(\w+)\s*,", re.M)
