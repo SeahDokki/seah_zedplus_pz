@@ -42,6 +42,12 @@ local STATS_DELAY_TICKS = 2
 --- belt to that pair of braces.
 local OUTFIT_DELAY_TICKS = 15
 
+--- How many times dressing is retried before handing the zombie back to the
+--- engine's own random outfit. Five attempts backing off by OUTFIT_DELAY_TICKS
+--- each covers about seven seconds, which is far longer than any spawn observed
+--- - and the point is to stop, not to keep trying forever.
+local OUTFIT_MAX_ATTEMPTS = 5
+
 -- --------------------------------------------------------------- capture --
 
 --- Record the zombie's untouched values, once.
@@ -221,7 +227,27 @@ local function onTick()
             local zombie = entry.zombie
             if zombie:getSquare() ~= nil then
                 if entry.what == "outfit" then
-                    SZedPlus.Appearance.apply(zombie)
+                    -- Retried until the clothes verifiably stick.
+                    --
+                    -- On a naturally spawned zombie the engine finishes
+                    -- dressing it AFTER this first runs and strips what was
+                    -- put on, so one attempt at a fixed delay is a coin toss -
+                    -- and it was losing. Appearance.apply now reports whether
+                    -- anything landed, and this backs off and tries again
+                    -- rather than trusting a bigger magic number.
+                    if not SZedPlus.Appearance.apply(zombie) then
+                        entry.attempts = (entry.attempts or 1) + 1
+                        if entry.attempts <= OUTFIT_MAX_ATTEMPTS then
+                            -- Back off: each attempt waits longer than the
+                            -- last, so a slow spawn is caught without holding
+                            -- every zombie in the queue for the same duration.
+                            entry.ticks = OUTFIT_DELAY_TICKS * entry.attempts
+                            remainingCount = remainingCount + 1
+                            remaining[remainingCount] = entry
+                        else
+                            SZedPlus.Appearance.abandon(zombie)
+                        end
+                    end
                 else
                     SZedPlus.Behaviour.apply(zombie)
                 end

@@ -185,8 +185,19 @@ end
 
 -- ------------------------------------------------------------------ apply --
 
+--- True if this outfit asks for any clothing at all. A form that only tints or
+--- bloodies the body has nothing to verify.
+local function wantsClothing(outfit)
+    if outfit == nil then return false end
+    if outfit.outfit ~= nil then return true end
+    return #(outfit.items or {}) > 0
+end
+
 --- Dress a zombie according to its T5 form. Does nothing for any other tier,
 --- for a form with no outfit, or for a zombie already dressed.
+---
+--- Returns true when the clothing is on and verified, false when it should be
+--- retried - see the note at the end of the function.
 function SZedPlus.Appearance.apply(zombie)
     if zombie == nil then return false end
 
@@ -297,8 +308,55 @@ function SZedPlus.Appearance.apply(zombie)
     -- Rebuild the model so the changes show without waiting for another event.
     pcall(function() zombie:resetModelNextFrame() end)
 
+    -- Did any of that actually stick?
+    --
+    -- On a naturally spawned zombie it often does not. The engine finishes
+    -- building the zombie after OnZombieCreate returns - the same reason stats
+    -- are queued rather than set - and for clothing that can land AFTER this
+    -- runs, stripping what was just put on. The flag was set anyway, so nothing
+    -- ever retried and the T5 stayed naked for the rest of its life.
+    --
+    -- Debug-spawned zombies never showed it because they arrive fully built,
+    -- and reloaded ones recovered by accident: the reload path clears the flag
+    -- and re-queues, which is a retry by another name. That asymmetry is what
+    -- identified this.
+    --
+    -- So verify instead of assuming, and let the caller retry. A bigger delay
+    -- would only be a different guess; asking the zombie what it is wearing is
+    -- the same principle already used on the reload path.
+    if wantsClothing(outfit) then
+        local visuals = 0
+        pcall(function()
+            local list = zombie:getItemVisuals()
+            visuals = list and list:size() or 0
+        end)
+
+        if visuals == 0 then
+            SZedPlus.log("dressing %s: nothing stuck yet, will retry",
+                tostring(data[Keys.form]))
+            return false
+        end
+    end
+
     data[Keys.outfitApplied] = true
     SZedPlus.log("dressed %s: outfit '%s' + %d item(s)",
         SZedPlus.describe(zombie), tostring(outfit.outfit or "-"), worn)
     return true
+end
+
+--- Give up on dressing this zombie and let the engine do it instead.
+---
+--- Called once the retries are exhausted. prepare() turned the engine's own
+--- random dressing off, so abandoning without undoing that leaves a naked
+--- zombie - which is worse than a T5 in the wrong clothes, because it reads as
+--- a broken mod rather than an unlucky outfit.
+function SZedPlus.Appearance.abandon(zombie)
+    if zombie == nil then return end
+
+    SZedPlus.logError("could not dress %s - falling back to a random outfit",
+        tostring(zombie:getModData()[Keys.form]))
+
+    pcall(function() zombie:setDressInRandomOutfit(true) end)
+    pcall(function() zombie:dressInRandomOutfit() end)
+    pcall(function() zombie:resetModelNextFrame() end)
 end

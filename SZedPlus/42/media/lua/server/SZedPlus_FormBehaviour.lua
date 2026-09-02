@@ -317,6 +317,35 @@ local function relocate(zombie, x, y, z)
     return ok
 end
 
+--- Has this zombie actually noticed `player`, as opposed to merely being near
+--- them?
+---
+--- findNearestPlayer has no aggro condition at all - it answers "who is
+--- closest", nothing more - so every form routine is handed a player it may
+--- never have seen. Acting on that made abilities fire on proximity alone: a
+--- Witch woke and screamed through a wall, a Colossus floored someone walking
+--- past it, and a Scout called a horde on a player it had not noticed.
+---
+--- getTarget is the AI's own answer to "who am I coming for", so this covers
+--- having noticed, having aggro and still holding it without reimplementing
+--- any of that. `mustSee` additionally requires line of sight, for the forms
+--- whose trigger is being spotted rather than being hunted.
+---
+--- Two forms deliberately do NOT use this, and must not:
+---   Stalker - freezes while it is LOOKED AT. That is about the player's gaze,
+---             not the zombie's aggro, and gating it would break the form.
+---   Mimic   - proximity is the trigger by design. It is scenery until stepped
+---             on, and a corpse has noticed nobody.
+local function hasNoticed(zombie, player, mustSee)
+    if zombie == nil or player == nil then return false end
+    local ok, noticed = pcall(function()
+        if zombie:getTarget() ~= player then return false end
+        if mustSee then return zombie:isTargetVisible() == true end
+        return true
+    end)
+    return ok and noticed == true
+end
+
 local function runAmbush(zombie, rule, data, player, distance)
     enforceWalkType(zombie, rule.forceWalkType)
 
@@ -374,6 +403,23 @@ local function runAmbush(zombie, rule, data, player, distance)
         return
     end
 
+    -- Inside trigger range, but she still has to have SEEN someone. Proximity
+    -- alone woke her through walls and had her screaming at a player who had
+    -- never come into view - reported from a playtest, and the reason this
+    -- check exists. Note the branch above stops clearing her target once the
+    -- player is in range, which is what lets the engine give her one to notice.
+    --
+    -- The touch fallback is not flavour, it is a safety net. She waits with
+    -- setCanWalk(false) and sitting against a wall, and whether a zombie in
+    -- that state still acquires targets is not something this mod controls. If
+    -- it does not, requiring a target would leave her inert forever and the
+    -- form would simply never happen - the same class of silent nothing that
+    -- kept every T5 from spawning. Walking into her wakes her regardless.
+    local touchDist = rule.wakeTouchDist or 2
+    local touched = distance <= touchDist * touchDist
+
+    if not touched and not hasNoticed(zombie, player, true) then return end
+
     data[Keys.formTriggered] = true
     pcall(function()
         zombie:setSitAgainstWall(false)
@@ -398,8 +444,16 @@ local function runUnstoppable(zombie, rule, data, player, distance)
     -- appears once the swing has resolved. Tripping on arrival instead makes it
     -- the opener - you go down, and then it is on top of you, which is what a
     -- wall of flesh reaching you should feel like.
+    -- And only to someone it is actually coming for.
+    --
+    -- Proximity alone was the whole condition, so a Colossus that had never
+    -- noticed anyone still floored a player who walked past it - it read as the
+    -- zombie having a trip hazard rather than making an attack. No line of
+    -- sight required: being floored by something already hunting you that you
+    -- walked in front of is fair, whichever way it happens to be facing.
     if rule.floorOnHit and player and distance
-        and distance <= (rule.hitRange or 1.6) ^ 2 then
+        and distance <= (rule.hitRange or 1.6) ^ 2
+        and hasNoticed(zombie, player, false) then
 
         local cooldown = (data[Keys.formCooldown] or 0) - SWEEP_INTERVAL_TICKS
         if cooldown > 0 then
@@ -567,11 +621,7 @@ local function runBomb(zombie, rule, data, player, distance)
         -- Proximity is not enough: it has to have actually seen you. Walking up
         -- behind an unaware Boomer set it off, which made sneaking past one
         -- impossible and rewarded nothing.
-        local spotted = false
-        pcall(function()
-            spotted = zombie:getTarget() ~= nil and zombie:isTargetVisible()
-        end)
-        if not spotted then return end
+        if not hasNoticed(zombie, player, true) then return end
 
         data[Keys.formFuse] = rule.fuseTicks
         makeNoise(zombie, rule.screamRadius, rule.screamVolume)
@@ -783,9 +833,11 @@ local function runSpitter(zombie, rule, data, player, distance)
 
     -- Only spits at something it has actually noticed. Without this it threw
     -- acid at a player it had never aggroed, purely on distance.
-    if zombie:getTarget() == nil and not zombie:isTargetVisible() then
-        return
-    end
+    --
+    -- The check was `getTarget() == nil and not isTargetVisible()`, which only
+    -- bails when BOTH are false - so a Spitter holding a target it could not
+    -- see still threw. It wanted the positive form all along.
+    if not hasNoticed(zombie, player, true) then return end
 
     -- Planted while spitting: this is the window to close the distance on it.
     local rooted = data[Keys.formRoot]
@@ -864,6 +916,11 @@ local function runAlarm(zombie, rule, data, player, distance)
         zombie:clearAggroList()
         return
     end
+
+    -- And it has to have seen someone before raising the alarm. There was no
+    -- check here at all, so a Scout screamed a horde onto a player who had
+    -- walked past without ever being noticed.
+    if not hasNoticed(zombie, player, true) then return end
 
     -- Closes in, but stops short: the horde does the killing.
     if distance > (rule.keepDistance or 4) * (rule.keepDistance or 4) then
