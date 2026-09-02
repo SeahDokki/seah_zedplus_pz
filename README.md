@@ -23,6 +23,7 @@ Design Bible — special enemy system, evolution tree and behaviours.
 - [T6 · Calamities](#t6--calamities)
 - [Easter Egg · Thriller](#easter-egg--thriller)
 - [Open points](#open-points)
+- [Credits](#credits)
 - [License](#license)
 - [Support](#support)
 
@@ -397,13 +398,29 @@ by *Armageddon Riders* and *Michael Jackson's Thriller*.
 Contributions are welcome — bug fixes, behaviour tuning, compatibility patches and translations.
 
 - **Code is English-only.** Names and comments in English, no exceptions.
-- **No hardcoded player-facing strings.** Everything goes through the translation files: EN, FR, ES and DE at
-  minimum, all four updated in the same change.
+- **No hardcoded player-facing strings.** Everything goes through the translation files: EN, FR, ES, DE and CN at
+  minimum, all five updated in the same change. `python tools/i18ncheck.py` verifies they stay in step.
 - **All identifiers are prefixed `SZedPlus`** — mod id, modData keys, Lua namespaces, translation keys.
 - **No AI-generated assets.** AI assistance on code and translations is fine; images, textures, models, sounds and
   music must be human-authored. See [LICENSE](LICENSE) §4.
 
 By contributing you agree to the terms in [LICENSE](LICENSE) §5.
+
+---
+
+## Credits
+
+**ZED+ by Seah (SeahDokki).**
+
+| | |
+|---|---|
+| Simplified Chinese (`CN`) | **zyyxxxxx** |
+
+Contributed unprompted and done properly — consistent terminology, correct full-width punctuation, and idiom where
+the English is idiomatic rather than dictionary matches. Thank you.
+
+Translations are welcome. English is the reference; see [Contributing](#contributing) above and the layout in
+[CLAUDE.md](CLAUDE.md). Anyone who sends one gets a line here and on the Workshop page.
 
 ---
 
