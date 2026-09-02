@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-ZED+ is a **Project Zomboid mod, currently in design phase**. The repository contains no code yet — only
-[zedplus-design-bible.md](zedplus-design-bible.md), and the git repo has no commits.
+ZED+ is a **published Project Zomboid mod** — Steam Workshop id `3792733238`, first released 30 Aug 2026, second
+release 3 Sep 2026 (T5 forms, per-form weights, Bandits guard, Simplified Chinese).
 
 The design bible is the **spec of record**, written in French. Read it before any implementation work: it defines
 every tier, path, and creature with concrete numbers (spawn rates, tile radii, day thresholds). Its "Points ouverts"
@@ -118,8 +118,9 @@ French and the user works in French, but nothing French belongs in the Lua sourc
 
 ## Translations (i18n)
 
-Minimum shipped locales: **EN, FR, ES, DE**. English is the reference and the fallback. Create all four folders at
-once and add every new string to all four in the same change — never English-only.
+Minimum shipped locales: **EN, FR, ES, DE, CN**. English is the reference and the fallback. Add every new string to
+all five in the same change — never English-only. Simplified Chinese was contributed by **zyyxxxxx** and is credited
+in the README and the Workshop description; strings added since are mine, not theirs, and are worth having reviewed.
 
 **Translations are JSON, one file per language folder, with no language suffix in the filename.** B42.20 dropped
 the `.txt` format completely - vanilla `Translate/<LANG>/` contains only `.json`. Some installed B42 mods still ship
@@ -354,10 +355,83 @@ Names are a flat global namespace shared with every mod, so prefix the file (`SZ
 constants were read rather than guessed (`HEARING_PINPOINT=1 NORMAL=2 POOR=3`, `SPEED_SPRINTER=1 FAST_SHAMBLER=2
 SHAMBLER=3`).
 
+**`getWalkType()` can return a bare variant number.** It comes back as `"1"`..`"5"` rather than the
+family-prefixed name (`slow2`, `sprint5`) that `getSpeedTypeFromWalkType` accepts and that `WALK_SCALE` is built
+from. No zombie could be placed on the scale, so **every T1-T4 speed rule silently took the "unknown walk type"
+exit** - 144 times in one session. That had disabled the tier speed modifier entirely while the health modifier
+beside it worked, so the tiers still felt like tiers. `IsoZombie` stores `"slow"`, `"walk"` and `"sprint"` as three
+separate strings and appends the variant, so the number is a name missing its family and `getSpeedType()` is the
+family. `normaliseWalkType()` rebuilds the name from those two engine-supplied values and then **checks it** against
+`getSpeedTypeFromWalkType` before use; `walk4` and `walk5` do not exist and are still skipped, warned once per walk
+type rather than once per zombie. Those 144 identical lines are the real lesson: a warning that repeats per-entity
+turns a genuine signal into noise, and this one sat in the log unread across several playtests.
+
 **Confirmed signatures** (B42.20): `getHealth()F` and `setHealth(F)V` on `IsoGameCharacter`; `getWalkType()` returns
 a `String` and `setWalkType(String)`, `setSpeedTypeFromWalkType()`, `getSpeedType()I` on `IsoZombie`. Walk type
 values, from the engine's own doc: "slow1-3 if it's a shambler, or sprint1-5 if it's a sprinter" - the ordering
 within a family is inferred, not documented.
+
+## Zombie outfits, and why a T5 renders naked (open, 3 Sep 2026)
+
+Shipped as a known issue. Five attempts, each wrong in a new way, so this is what is **established** and what is
+**ruled out** - read it before writing code, and add to it rather than re-deriving it.
+
+**Outfit lookup is gender-split, and this part is fixed.** `HumanVisual.dressInNamedOutfit` resolves the name
+through `OutfitManager.FindMaleOutfit` or `FindFemaleOutfit` according to `isFemale`, and most outfits exist in only
+one of the two lists - `WeddingDress` is female-only, `ConstructionWorker` male-only, checked against
+`media/clothing/clothing.xml`. Ask the wrong list and the lookup returns null, the zombie is dressed in nothing, and
+**no error is raised**. `setFemaleEtc()` from `OnZombieCreate` does not survive (the engine settles gender itself
+afterwards, the same reason stats are queued), so gender is re-asserted in `Appearance.apply()` immediately before
+the lookup and before any clothing - `setFemaleEtc` rebuilds the model and drops what the zombie wears.
+
+**Every check made inside `apply()` is too early, by construction.** The engine finishes building a naturally
+spawned zombie after the mod has had its turn. Three proxies were fooled in a row and each looked reasonable:
+
+- the `outfitApplied` flag, set unconditionally - nothing ever retried;
+- `getItemVisuals():size() > 0` - satisfied by the Witch's *veil* alone, an item worn through the inventory and
+  gender-agnostic, while the dress was missing;
+- **`getOutfitName()` - returns the requested outfit on a completely naked zombie.** The name outlives the
+  garments. This is the trap most likely to catch the next attempt.
+
+**The garments are correct. This is measured, not assumed.** A verification pass 120 ticks after dressing logs
+`getItemVisuals()` item types and they are complete: `Vest_HighViz` + `Hat_HardHat` + `Trousers_Denim` for the
+Colossus, `Apron_Spiffos` for the Spitter, `Base.WeddingDress` with veil and jewellery for the Witch - on zombies
+rendering as bare bodies. Nothing strips them either: zero "was stripped" in a full session. **Do not spend another
+round on the clothing data.**
+
+**`resetModel()` is callable and does not fix it.** It is declared in `ILuaGameCharacter` alongside
+`resetModelNextFrame()`, so the call is not being swallowed by a `pcall`. Called immediately after the late
+dressing, the zombie still renders naked.
+
+**A reload fixes it, and that asymmetry is the shape of the bug.** The model is built once and the mod's clothes
+arrive afterwards. Reloading rebuilds it from data that is already correct.
+
+**The unexplored lead: the persistent outfit id.** B42 zombies carry one, and it is how an outfit persists
+compactly - `ZombiePopulationManager`, `SharedDescriptors`, `VirtualZombieManager` and `IsoWorld` all go through
+`zombie/PersistentOutfits`. `IsoZombie` has `getPersistentOutfitID()`, `dressInPersistentOutfit()` and
+`dressInPersistentOutfitID(int)`. If the model is built from that id then writing `ItemVisuals` is writing to the
+wrong place, and every correct garment list has been beside the point. It would also explain what a stale render
+does not: that reloading gives a T5 **an** outfit rather than **its own**.
+
+Measured so far: the id is present and varied on dressed T5s - `4325475`, `-2143157897`, `4390984`. Large and
+signed, so packed values rather than small indices into a list.
+
+The obstacle: **`PersistentOutfits` is not exposed to Lua.** No exposer class references it, so
+`pickOutfitMale/Female(name) -> int` cannot be called and there is no documented way to get the id for a named
+outfit. `getPersistentOutfitID()` and `dressInPersistentOutfitID(int)` *are* on `IsoZombie` and reachable. Two
+routes worth trying, in order:
+
+1. Learn the mapping at runtime. Ordinary zombies the engine dressed expose both `getOutfitName()` and
+   `getPersistentOutfitID()`, so a name-to-id table can be built by observation and then applied with
+   `dressInPersistentOutfitID`. Self-validating: check `getOutfitName()` afterwards.
+2. `PersistentOutfits.ApplyOutfit(int, String, IsoGameCharacter)` is **static** - if the class turns out to be
+   reachable after all, that is the direct route.
+
+**The experiment that has not been run.** `Debug > Zed+ > Redress nearby T5 forms` redresses and rebuilds on
+demand, logging `before` and `after` with the id. Clicking it next to a naked T5 separates the two remaining
+possibilities in one action: if it dresses, the data was always fine and only the rebuild timing is wrong; if it
+does not, `ItemVisuals` are not what the zombie is drawn from and the id is the thing to chase. **Ask for this
+before writing anything.**
 
 ## Zombie scaling: investigated, not possible (B42.20)
 
@@ -488,7 +562,12 @@ are captured once into modData, and every modifier is computed from those, never
 ## Current state
 
 Implemented: sandbox options, config with fallbacks, the Calamity registry, the spawn roll, T1-T4 health and speed
-modifiers, and the debug tooling (right-click > Debug > Zed+: spawn any tier, GetStats panel, inspect, remove).
+modifiers, all seven T5 forms with their behaviours and outfits, per-form spawn weights, form persistence across
+chunk unloads, the acid system, the Bandits guard, and the debug tooling (right-click > Debug > Zed+: spawn any
+tier, GetStats panel, inspect, remove, redress nearby T5s).
 
 Not implemented: the Stealth short-aggro behaviour (no way to set hearing - needs a different mechanism), the Ranged
-putrefaction gas, every T5 form, every T6 Calamity, tier promotion (T4 to T5/T6), and the Thriller easter egg.
+putrefaction gas, the Volatile, every T6 Calamity, tier promotion (T4 to T5/T6), and the Thriller easter egg.
+
+**Open bug, shipped as a known issue:** a T5 spawned naturally is drawn without its outfit until the area reloads.
+See the section below before touching it - five attempts have been made and each was wrong in a new way.
