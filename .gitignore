@@ -11,3 +11,7 @@ desktop.ini
 # Asset sources (originals, .blend, downloads). Only what the mod loads is
 # versioned, under SZedPlus/42/media/. See ASSETS.md.
 Assets/
+
+# Steam Workshop store copy. Kept local: it is store-page content, not
+# something the mod loads, and it changes independently of the code.
+workshop_description.txt
