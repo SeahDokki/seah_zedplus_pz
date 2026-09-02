@@ -60,9 +60,23 @@ local function captureBaseline(zombie, data)
     if data[Keys.baseWalkType] == nil then
         data[Keys.baseWalkType] = zombie:getWalkType()
     end
+    -- The speed family, kept because the walk type alone may not identify it -
+    -- see normaliseWalkType.
+    if data[Keys.baseSpeedType] == nil then
+        data[Keys.baseSpeedType] = zombie:getSpeedType()
+    end
 end
 
 -- ----------------------------------------------------------------- speed --
+
+--- Walk-type families, keyed by the speedType the engine reports for them.
+--- IsoZombie holds "slow", "walk" and "sprint" as three separate strings and
+--- appends the variant number, which is why a name can arrive without one.
+local FAMILY_BY_SPEED_TYPE = { [1] = "sprint", [2] = "walk", [3] = "slow" }
+
+--- Walk types already reported as unusable, so the log gets one line and not
+--- one per zombie.
+local warnedWalkTypes = {}
 
 --- The usable speed scale, resolved once: { walkType, speedType } slowest
 --- first, plus a lookup from walk type back to its position.
@@ -108,6 +122,40 @@ local function getScale()
     return scale
 end
 
+--- Turn whatever getWalkType() returned into a name that is on the scale.
+---
+--- It can come back as a bare variant number - "1" through "5" - rather than
+--- the family-prefixed name the scale is built from. That placed no zombie on
+--- the scale, so every speed rule was skipped: 144 times in a single session,
+--- which had quietly disabled the T1-T4 speed modifier altogether while the
+--- health modifier beside it worked fine. The log said so plainly, once per
+--- zombie, and it went unread.
+---
+--- The family is what the number is missing, and getSpeedType() supplies it, so
+--- the name can be rebuilt from two values the engine gave us. Then it is
+--- CHECKED against getSpeedTypeFromWalkType: the engine has to agree that the
+--- rebuilt name belongs to that family. A reconstruction that validates against
+--- the engine is worth keeping; one that merely looks plausible is a guess, and
+--- guessing at this exact spot is what the previous rounds cost.
+local function normaliseWalkType(walkType, speedType)
+    if walkType == nil then return nil end
+
+    -- Already a name we know.
+    if scaleIndex[walkType] then return walkType end
+
+    local variant = string.match(tostring(walkType), "^(%d+)$")
+    if variant == nil then return nil end
+
+    local family = FAMILY_BY_SPEED_TYPE[speedType]
+    if family == nil then return nil end
+
+    local rebuilt = family .. variant
+    if scaleIndex[rebuilt] == nil then return nil end
+    if speedTypeOf(rebuilt) ~= speedType then return nil end
+
+    return rebuilt
+end
+
 --- First position on the scale that is at least as fast as `speedType`.
 local function firstPositionAtLeast(speedType)
     for index, entry in ipairs(getScale()) do
@@ -138,10 +186,27 @@ local function applySpeed(zombie, data, stage)
     if baseWalkType == nil then return end
 
     local entries = getScale()
-    local position = scaleIndex[baseWalkType]
+
+    -- Saves written before the speed family was captured have no baseline for
+    -- it. Reading it now is correct for exactly those zombies: the rule they
+    -- needed it for was being skipped, so their speed was never touched and the
+    -- current family is still the original one.
+    local baseSpeedType = data[Keys.baseSpeedType]
+    if baseSpeedType == nil then
+        baseSpeedType = zombie:getSpeedType()
+        data[Keys.baseSpeedType] = baseSpeedType
+    end
+
+    local resolved = normaliseWalkType(baseWalkType, baseSpeedType)
+    local position = resolved and scaleIndex[resolved] or nil
     if position == nil then
-        -- Unknown walk type: leave the zombie alone rather than guess.
-        SZedPlus.log("unknown walk type '%s', speed rule skipped", tostring(baseWalkType))
+        -- Still unplaceable: leave the zombie alone rather than guess. Once per
+        -- walk type, because the alternative was 144 identical lines.
+        if not warnedWalkTypes[tostring(baseWalkType)] then
+            warnedWalkTypes[tostring(baseWalkType)] = true
+            SZedPlus.log("walk type '%s' (speed family %s) is not on the scale, "
+                .. "speed rule skipped", tostring(baseWalkType), tostring(baseSpeedType))
+        end
         return
     end
 

@@ -25,6 +25,7 @@ SZedPlus.Keys = {
     -- instead of compounding.
     baseHealth      = "SZedPlus_baseHealth",
     baseWalkType    = "SZedPlus_baseWalkType",
+    baseSpeedType   = "SZedPlus_baseSpeedType",
 
     -- Worn clothing is saved with the zombie, so dressing must happen once and
     -- never again: re-running it on a chunk reload would stack items and reset
