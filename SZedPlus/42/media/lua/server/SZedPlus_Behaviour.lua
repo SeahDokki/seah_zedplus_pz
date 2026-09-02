@@ -48,6 +48,19 @@ local OUTFIT_DELAY_TICKS = 15
 --- - and the point is to stop, not to keep trying forever.
 local OUTFIT_MAX_ATTEMPTS = 5
 
+--- How long to wait before asking whether the clothes are still on.
+---
+--- Dressing has to be checked LATER, not at the end of the dressing itself:
+--- the engine finishes building a naturally spawned zombie after the mod has
+--- had its turn, and clears its clothing then. Three checks in a row were
+--- fooled by running too early - the last of them read getOutfitName(), which
+--- still names the requested outfit on a zombie wearing nothing.
+---
+--- Two seconds at 60fps. Long enough to be after the engine rather than in the
+--- middle of it, which is the property that matters; the exact number is not
+--- load-bearing, because a failed check redresses and checks again.
+local OUTFIT_VERIFY_TICKS = 120
+
 -- --------------------------------------------------------------- capture --
 
 --- Record the zombie's untouched values, once.
@@ -262,7 +275,10 @@ end
 -- ----------------------------------------------------------------- queue --
 
 --- Ask for this zombie's stats and clothing to be applied shortly.
---- Two entries, because the two need very different delays.
+---
+--- Separate entries, because they need very different delays - and dressing
+--- adds a third of its own once it has run, to check the clothes are still
+--- there. See OUTFIT_VERIFY_TICKS.
 function SZedPlus.Behaviour.queue(zombie)
     if zombie == nil then return end
 
@@ -306,7 +322,18 @@ local function onTick()
                     -- and it was losing. Appearance.apply now reports whether
                     -- anything landed, and this backs off and tries again
                     -- rather than trusting a bigger magic number.
-                    if not SZedPlus.Appearance.apply(zombie) then
+                    if SZedPlus.Appearance.apply(zombie) then
+                        -- Dressed, as far as this instant can tell - which is
+                        -- not far. Queue a check for once the engine has
+                        -- finished with the zombie.
+                        remainingCount = remainingCount + 1
+                        remaining[remainingCount] = {
+                            zombie = zombie,
+                            ticks = OUTFIT_VERIFY_TICKS,
+                            what = "verify",
+                            attempts = entry.attempts or 1,
+                        }
+                    else
                         entry.attempts = (entry.attempts or 1) + 1
                         if entry.attempts <= OUTFIT_MAX_ATTEMPTS then
                             -- Back off: each attempt waits longer than the
@@ -315,6 +342,34 @@ local function onTick()
                             entry.ticks = OUTFIT_DELAY_TICKS * entry.attempts
                             remainingCount = remainingCount + 1
                             remaining[remainingCount] = entry
+                        else
+                            SZedPlus.Appearance.abandon(zombie)
+                        end
+                    end
+                elseif entry.what == "verify" then
+                    local worn, list = SZedPlus.Appearance.wornSummary(zombie)
+
+                    if SZedPlus.Appearance.isDressed(zombie) then
+                        -- Logged either way, on purpose. Every round of this
+                        -- bug was spent inferring what a T5 was wearing from
+                        -- something that was not that; the list is cheap.
+                        SZedPlus.log("%s kept its clothes: %d garment(s) [%s]",
+                            SZedPlus.describe(zombie), worn, list)
+                    else
+                        entry.attempts = (entry.attempts or 1) + 1
+                        SZedPlus.log("%s was stripped after dressing "
+                            .. "(%d garment(s)), redressing - attempt %d",
+                            SZedPlus.describe(zombie), worn, entry.attempts)
+
+                        if entry.attempts <= OUTFIT_MAX_ATTEMPTS then
+                            SZedPlus.Appearance.reset(zombie)
+                            remainingCount = remainingCount + 1
+                            remaining[remainingCount] = {
+                                zombie = zombie,
+                                ticks = OUTFIT_DELAY_TICKS,
+                                what = "outfit",
+                                attempts = entry.attempts,
+                            }
                         else
                             SZedPlus.Appearance.abandon(zombie)
                         end

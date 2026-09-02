@@ -399,6 +399,49 @@ function SZedPlus.Appearance.apply(zombie)
     return true
 end
 
+-- ----------------------------------------------------------------- verify --
+
+--- What this zombie is actually wearing, as a count and a readable list.
+--- Used for the log: the whole difficulty with this bug has been that every
+--- summary of the state was a proxy for it, so print the state.
+function SZedPlus.Appearance.wornSummary(zombie)
+    local types = {}
+    forEachGarment(zombie, function(visual)
+        local itemType
+        pcall(function() itemType = visual:getItemType() end)
+        types[#types + 1] = tostring(itemType or "?")
+    end)
+    return #types, table.concat(types, ", ")
+end
+
+--- Is this zombie wearing anything at all?
+---
+--- Asked a while AFTER dressing, which is the only moment the answer means
+--- anything. Three checks were fooled before this one, each because it ran
+--- inside apply(): the engine finishes building a naturally spawned zombie
+--- after the mod has had its turn and clears the clothing then, so a check made
+--- in the same breath as the dressing can only ever describe the moment before
+--- the problem. getOutfitName() in particular still returns the requested
+--- outfit on a completely naked zombie - the name outlives the garments.
+---
+--- So this counts garments, and it is called from a separate queued pass.
+function SZedPlus.Appearance.isDressed(zombie)
+    if zombie == nil then return true end
+
+    local outfit = SZedPlus.Outfits.get(zombie:getModData()[Keys.form])
+    if not wantsClothing(outfit) then return true end
+
+    local count = SZedPlus.Appearance.wornSummary(zombie)
+    return count > 0
+end
+
+--- Forget that this zombie was dressed, so the next attempt redresses it
+--- instead of taking the "already wearing it" exit.
+function SZedPlus.Appearance.reset(zombie)
+    if zombie == nil then return end
+    zombie:getModData()[Keys.outfitApplied] = nil
+end
+
 --- Give up on dressing this zombie and let the engine do it instead.
 ---
 --- Called once the retries are exhausted. prepare() turned the engine's own
