@@ -40,5 +40,6 @@
     "IGUI_SZedPlus_StatsNoTarget": "No se encontró ningún zombi ahí",
     "IGUI_SZedPlus_StatsSenses": "Percepción",
     "IGUI_SZedPlus_DebugCreatures": "Criaturas",
-    "IGUI_SZedPlus_StatsForm": "Comportamiento"
+    "IGUI_SZedPlus_StatsForm": "Comportamiento",
+    "IGUI_SZedPlus_DebugRedress": "Volver a vestir las formas T5 cercanas"
 }

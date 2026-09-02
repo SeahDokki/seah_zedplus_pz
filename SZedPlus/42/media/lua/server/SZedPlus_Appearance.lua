@@ -442,6 +442,51 @@ function SZedPlus.Appearance.reset(zombie)
     zombie:getModData()[Keys.outfitApplied] = nil
 end
 
+--- Everything the engine will tell us about how a zombie is dressed.
+---
+--- Written because four checks in a row were fooled by asking one narrow
+--- question. B42 zombies carry a persistent outfit id - ZombiePopulationManager,
+--- SharedDescriptors and VirtualZombieManager all go through PersistentOutfits -
+--- and if that id is what the model is built from, then setting ItemVisuals is
+--- writing to the wrong place entirely, however correct the result looks in a
+--- garment list. getPersistentOutfitID() is a method, so Lua can read it, and
+--- that is the measurement worth having before writing any more code.
+function SZedPlus.Appearance.describeState(zombie)
+    if zombie == nil then return "no zombie" end
+
+    local outfitName, persistentId, wantsRandom
+    pcall(function() outfitName = zombie:getOutfitName() end)
+    pcall(function() persistentId = zombie:getPersistentOutfitID() end)
+    pcall(function() wantsRandom = zombie:shouldDressInRandomOutfit() end)
+
+    local count, list = SZedPlus.Appearance.wornSummary(zombie)
+
+    return string.format("outfit='%s' persistentId=%s wantsRandom=%s "
+        .. "garments=%d [%s]",
+        tostring(outfitName), tostring(persistentId), tostring(wantsRandom),
+        count, list)
+end
+
+--- Redress a zombie now and rebuild its model, reporting both states.
+--- Driven from the debug menu: it answers "can this be fixed at all, at any
+--- moment", which no amount of reading the engine settles.
+function SZedPlus.Appearance.redressNow(zombie)
+    if zombie == nil then return end
+
+    SZedPlus.logAlways("redress %s: before  %s",
+        SZedPlus.describe(zombie), SZedPlus.Appearance.describeState(zombie))
+
+    zombie:getModData()[Keys.outfitFinal] = nil
+    SZedPlus.Appearance.reset(zombie)
+    SZedPlus.Appearance.apply(zombie)
+
+    local ok = pcall(function() zombie:resetModel() end)
+
+    SZedPlus.logAlways("redress %s: after   %s (resetModel ok=%s)",
+        SZedPlus.describe(zombie), SZedPlus.Appearance.describeState(zombie),
+        tostring(ok))
+end
+
 --- Give up on dressing this zombie and let the engine do it instead.
 ---
 --- Called once the retries are exhausted. prepare() turned the engine's own

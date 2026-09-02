@@ -245,11 +245,38 @@ end
 
 -- ------------------------------------------------- multiplayer entry point --
 
+--- Redress every Zed+ with a form near the player, and rebuild its model.
+---
+--- This exists to separate two things that reading the engine cannot: whether
+--- the clothes are wrong, or whether the model showing them is stale. Click it
+--- next to a naked T5. If it puts clothes on, the data was always fine and only
+--- the timing of the rebuild is at fault; if it does not, ItemVisuals are not
+--- what the zombie is drawn from and the persistent outfit id in the log is the
+--- thing to chase instead.
+function SZedPlus.DebugSpawn.redressNearby(player)
+    if player == nil then return end
+
+    local zombies = player:getCell():getZombieList()
+    local touched = 0
+
+    for index = 0, zombies:size() - 1 do
+        local zombie = zombies:get(index)
+        if zombie ~= nil and SZedPlus.isZedPlus(zombie)
+            and zombie:getModData()[SZedPlus.Keys.form] ~= nil then
+            SZedPlus.Appearance.redressNow(zombie)
+            touched = touched + 1
+        end
+    end
+
+    SZedPlus.logAlways("debug: redressed %d Zed+ with a form", touched)
+end
+
 local HANDLERS = {
     spawn = function(player, args) SZedPlus.DebugSpawn.spawn(player, args) end,
     inspect = function(player) SZedPlus.DebugSpawn.inspect(player) end,
     removeNearby = function(player) SZedPlus.DebugSpawn.removeNearby(player) end,
     getStats = function(player, args) SZedPlus.DebugSpawn.sendStats(player, args) end,
+    redressNearby = function(player) SZedPlus.DebugSpawn.redressNearby(player) end,
     spawnCreature = function(player, args) SZedPlus.DebugSpawn.spawnCreature(player, args) end,
 }
 

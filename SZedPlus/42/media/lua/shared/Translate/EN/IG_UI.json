@@ -40,5 +40,6 @@
     "IGUI_SZedPlus_StatsNoTarget": "No zombie found there",
     "IGUI_SZedPlus_StatsSenses": "Senses",
     "IGUI_SZedPlus_DebugCreatures": "Creatures",
-    "IGUI_SZedPlus_StatsForm": "Behaviour"
+    "IGUI_SZedPlus_StatsForm": "Behaviour",
+    "IGUI_SZedPlus_DebugRedress": "Redress nearby T5 forms"
 }

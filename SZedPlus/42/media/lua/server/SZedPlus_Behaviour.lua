@@ -384,15 +384,14 @@ local function onTick()
                         pcall(function() zombie:resetModel() end)
                     end
 
-                    local worn, list = SZedPlus.Appearance.wornSummary(zombie)
-
                     if SZedPlus.Appearance.isDressed(zombie) then
                         -- Logged with the garment list, on purpose. Every round
                         -- of this bug was spent inferring what a T5 was wearing
                         -- from something that was not that; the list is cheap,
                         -- and it is what finally identified the random outfits.
-                        SZedPlus.log("%s dressed for good: %d garment(s) [%s]",
-                            SZedPlus.describe(zombie), worn, list)
+                        SZedPlus.log("%s dressed for good: %s",
+                            SZedPlus.describe(zombie),
+                            SZedPlus.Appearance.describeState(zombie))
                     else
                         entry.attempts = (entry.attempts or 1) + 1
                         SZedPlus.log("%s has no clothes after the late dressing "
