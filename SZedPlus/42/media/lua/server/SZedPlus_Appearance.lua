@@ -196,16 +196,29 @@ end
 --- Dress a zombie according to its T5 form. Does nothing for any other tier,
 --- for a form with no outfit, or for a zombie already dressed.
 ---
---- Returns true when the clothing is on and verified, false when it should be
---- retried - see the note at the end of the function.
+--- RETURNS FALSE ONLY TO ASK FOR A RETRY. Every other outcome, including having
+--- nothing to do at all, is true.
+---
+--- That distinction is the whole contract and it was got wrong once. This used
+--- to return false for "no form", "no outfit" and "already dressed" as a way of
+--- saying "did not dress anything" - harmless while nobody read the value. Once
+--- the caller started retrying on false, every T1-T4 Zed+ (which has no form,
+--- so no outfit) burned five attempts and then had a random outfit forced on it
+--- with an error in the log: "could not dress nil". If a new early exit is added
+--- here, it returns true unless a later attempt could genuinely succeed.
 function SZedPlus.Appearance.apply(zombie)
-    if zombie == nil then return false end
+    -- Nothing to retry: there is no zombie.
+    if zombie == nil then return true end
 
     local data = zombie:getModData()
-    if data[Keys.outfitApplied] then return false end
 
+    -- Already wearing it.
+    if data[Keys.outfitApplied] then return true end
+
+    -- No form, or a form with no outfit. This is every T1-T4 Zed+, which is
+    -- most of them, and it is a normal outcome rather than a failure.
     local outfit = SZedPlus.Outfits.get(data[Keys.form])
-    if outfit == nil then return false end
+    if outfit == nil then return true end
 
     -- Some forms come in two states, and the state decides more than looks: a
     -- Boomer with its bottle still attached explodes differently. Roll it here,
@@ -353,8 +366,18 @@ end
 function SZedPlus.Appearance.abandon(zombie)
     if zombie == nil then return end
 
+    -- Only a form that actually wanted clothes can fail to get them. Reaching
+    -- here without one means the retry contract has been broken again, so say
+    -- so plainly instead of forcing a random outfit onto an ordinary Zed+.
+    local form = zombie:getModData()[Keys.form]
+    if form == nil then
+        SZedPlus.logError("abandon() called on a zombie with no form - "
+            .. "Appearance.apply returned false for something it had nothing to do")
+        return
+    end
+
     SZedPlus.logError("could not dress %s - falling back to a random outfit",
-        tostring(zombie:getModData()[Keys.form]))
+        tostring(form))
 
     pcall(function() zombie:setDressInRandomOutfit(true) end)
     pcall(function() zombie:dressInRandomOutfit() end)

@@ -204,8 +204,14 @@ function SZedPlus.Behaviour.queue(zombie)
     pendingCount = pendingCount + 1
     pending[pendingCount] = { zombie = zombie, ticks = STATS_DELAY_TICKS, what = "stats" }
 
-    pendingCount = pendingCount + 1
-    pending[pendingCount] = { zombie = zombie, ticks = OUTFIT_DELAY_TICKS, what = "outfit" }
+    -- Only a zombie with a form has clothing to put on, and only T5 has a
+    -- form. Queuing the other tiers put every ordinary Zed+ through the
+    -- dressing path to be told there was nothing to dress - harmless in
+    -- itself, but it is most of the zombies in the queue for no reason.
+    if zombie:getModData()[Keys.form] ~= nil then
+        pendingCount = pendingCount + 1
+        pending[pendingCount] = { zombie = zombie, ticks = OUTFIT_DELAY_TICKS, what = "outfit" }
+    end
 end
 
 --- Drain the queue. Cheap when empty, which is the normal case.
