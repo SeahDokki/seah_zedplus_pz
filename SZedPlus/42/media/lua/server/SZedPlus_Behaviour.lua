@@ -350,6 +350,25 @@ local function onTick()
                     local worn, list = SZedPlus.Appearance.wornSummary(zombie)
 
                     if SZedPlus.Appearance.isDressed(zombie) then
+                        -- The clothes are on. Rebuild the model, because being
+                        -- dressed and looking dressed turned out to be two
+                        -- different things.
+                        --
+                        -- This is where the bug actually was. The garments were
+                        -- right all along - the log lists a full wedding dress
+                        -- with veil, or Ranger gear down to the boots, on
+                        -- zombies rendering as naked bodies. So nothing was
+                        -- stripping them: the model had been built before they
+                        -- went on and was never built again. apply() does ask
+                        -- for a rebuild, but from inside itself, which is the
+                        -- same too-early moment that fooled every check here -
+                        -- the engine is still assembling the zombie and the
+                        -- request goes nowhere.
+                        --
+                        -- resetModel() rather than resetModelNextFrame():
+                        -- immediate, and by now there is nothing left to race.
+                        pcall(function() zombie:resetModel() end)
+
                         -- Logged either way, on purpose. Every round of this
                         -- bug was spent inferring what a T5 was wearing from
                         -- something that was not that; the list is cheap.
