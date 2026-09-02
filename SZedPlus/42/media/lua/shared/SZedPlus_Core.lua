@@ -31,6 +31,7 @@ SZedPlus.Keys = {
     -- never again: re-running it on a chunk reload would stack items and reset
     -- the damage.
     outfitApplied   = "SZedPlus_outfitApplied",
+    outfitFinal     = "SZedPlus_outfitFinal",
 
     -- T5 form behaviour state. Kept in modData so a form remembers across a
     -- chunk reload: a Witch that has screamed stays woken, a Mimic that was

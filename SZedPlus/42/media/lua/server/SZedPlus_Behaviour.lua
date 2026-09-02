@@ -347,40 +347,59 @@ local function onTick()
                         end
                     end
                 elseif entry.what == "verify" then
-                    local worn, list = SZedPlus.Appearance.wornSummary(zombie)
+                    -- The authoritative dressing, and the reason it is late.
+                    --
+                    -- The engine dresses zombies itself, after the mod has had
+                    -- its turn, and the log showed both ways that goes wrong.
+                    -- Some T5s were still in their own outfit and rendering as
+                    -- bare bodies, because the model had been built before the
+                    -- clothes went on and was never built again. Others were
+                    -- wearing a random civilian outfit the engine had put on
+                    -- over ours - a Witch in a t-shirt, denim shorts and
+                    -- glasses. One cause, two symptoms, and the early attempt
+                    -- loses the race either way.
+                    --
+                    -- Telling the two apart would mean recognising our outfit
+                    -- among the garments, and half of these outfits have no
+                    -- garment a random one could not also have:
+                    -- ConstructionWorker guarantees a belt, denim trousers,
+                    -- heavy socks and work boots and nothing else. Four checks
+                    -- have now been fooled by asking an approximate question,
+                    -- so this one does not ask. It dresses the zombie again,
+                    -- here, where the engine has already finished, and rebuilds
+                    -- the model immediately afterwards.
+                    --
+                    -- Once per zombie. dressInNamedOutfit replaces rather than
+                    -- adds, so this cannot stack clothing, but repeating it on
+                    -- every chunk reload would reset the damage on what the
+                    -- zombie is wearing.
+                    local data = zombie:getModData()
+                    if not data[Keys.outfitFinal] then
+                        data[Keys.outfitFinal] = true
+                        SZedPlus.Appearance.reset(zombie)
+                        SZedPlus.Appearance.apply(zombie)
 
-                    if SZedPlus.Appearance.isDressed(zombie) then
-                        -- The clothes are on. Rebuild the model, because being
-                        -- dressed and looking dressed turned out to be two
-                        -- different things.
-                        --
-                        -- This is where the bug actually was. The garments were
-                        -- right all along - the log lists a full wedding dress
-                        -- with veil, or Ranger gear down to the boots, on
-                        -- zombies rendering as naked bodies. So nothing was
-                        -- stripping them: the model had been built before they
-                        -- went on and was never built again. apply() does ask
-                        -- for a rebuild, but from inside itself, which is the
-                        -- same too-early moment that fooled every check here -
-                        -- the engine is still assembling the zombie and the
-                        -- request goes nowhere.
-                        --
                         -- resetModel() rather than resetModelNextFrame():
                         -- immediate, and by now there is nothing left to race.
                         pcall(function() zombie:resetModel() end)
+                    end
 
-                        -- Logged either way, on purpose. Every round of this
-                        -- bug was spent inferring what a T5 was wearing from
-                        -- something that was not that; the list is cheap.
-                        SZedPlus.log("%s kept its clothes: %d garment(s) [%s]",
+                    local worn, list = SZedPlus.Appearance.wornSummary(zombie)
+
+                    if SZedPlus.Appearance.isDressed(zombie) then
+                        -- Logged with the garment list, on purpose. Every round
+                        -- of this bug was spent inferring what a T5 was wearing
+                        -- from something that was not that; the list is cheap,
+                        -- and it is what finally identified the random outfits.
+                        SZedPlus.log("%s dressed for good: %d garment(s) [%s]",
                             SZedPlus.describe(zombie), worn, list)
                     else
                         entry.attempts = (entry.attempts or 1) + 1
-                        SZedPlus.log("%s was stripped after dressing "
-                            .. "(%d garment(s)), redressing - attempt %d",
-                            SZedPlus.describe(zombie), worn, entry.attempts)
+                        SZedPlus.log("%s has no clothes after the late dressing "
+                            .. "- attempt %d", SZedPlus.describe(zombie), entry.attempts)
 
                         if entry.attempts <= OUTFIT_MAX_ATTEMPTS then
+                            data[Keys.outfitFinal] = nil
                             SZedPlus.Appearance.reset(zombie)
                             remainingCount = remainingCount + 1
                             remaining[remainingCount] = {
