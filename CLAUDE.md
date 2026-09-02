@@ -73,8 +73,15 @@ spawns, from `GameTime.getInstance():getNightsSurvived()`. `data.SZedPlus_initia
 every hook must check it first, because zombie objects are re-instantiated whenever a chunk reloads. Only T4+
 carries ongoing evaluation logic; T1–T3 are set-and-forget stat tweaks.
 
-**Two persistence tiers with different lifetimes.** Per-zombie state lives in `zombie:getModData()` and is saved
-with the *chunk* — it survives unloading but is scoped to that zombie. Cross-zombie state (the calamity registry,
+**Two persistence tiers with different lifetimes.** Per-zombie state lives in `zombie:getModData()`. It survives a
+save and reload, because the chunk writes it — but **not** the player walking away. A zombie handed to the population
+manager is reduced to `ZombiePopulationManager$ZombieSaveData`, whose entire contents are `descriptorID, dir, state,
+x, y, z`; modData is not among them, so everything the mod wrote is discarded and what comes back is an ordinary
+zombie. `SZedPlus_Persistence` exists for that: a T5 is recorded by form and position in world ModData, and the first
+unclassified zombie to appear near the record claims it. Not the same object — that is impossible — but the form
+returns where it was left. Note the asymmetry it creates: after a *reload* modData is intact while the engine has
+rebuilt the model from the descriptor, so flags like `outfitApplied` come back set describing clothes that no longer
+exist. Ask the zombie what it is wearing rather than trusting the flag. Cross-zombie state (the calamity registry,
 used for the "one Calamity per 150-tile radius" exclusion) cannot live there; it lives in
 `ModData.getOrCreate("SZedPlus")`, held in memory and flushed on `Events.EveryTenMinutes`. Anything that must answer
 a *global* question ("is there already a Calamity near here?") belongs in the registry, not in per-zombie data.
@@ -195,6 +202,19 @@ values genuinely do not move until a restart. `SZedPlus.Config.reread(name)` re-
 server, where an admin can change them), and a periodic `refresh()` on `EveryTenMinutes` catches that case. But
 anything a player expects to toggle and see immediately needs a runtime override that takes precedence over the
 sandbox value - `SZedPlus.AcidRender.isOn()/toggle()` is the pattern, driven from the debug menu's Display submenu.
+
+**Anything that must HOLD has to be re-asserted every tick, not every sweep.** The behaviour sweep runs every six
+ticks, and that is far too coarse to hold a state against the AI: a sprinter crosses real ground in six frames and
+the engine re-acquires its target long before the next pass clears it. This cost several rounds across three
+different forms — the Stalker's freeze, the dormant Mimic's inertness, the Witch's endless pursuit — each rewritten
+repeatedly when the logic was never the problem, only its cadence. The Colossus worked from the first attempt purely
+because it was held from `OnTick`. `holdSteadfast()` is that per-tick pass; `holdStill` and `holdTarget` opt a form
+into it. And re-assert unconditionally: "only when the target is nil" left a Witch standing still with a stale
+target set.
+
+Even per-tick, `setCanWalk(false)` plus a cleared target is not a freeze — the AI keeps its own state and walks
+anyway. `changeState(ZombieIdleState.instance())` with `setStateMachineLocked(true)` is the one the AI cannot step
+around; every branch that is not the freeze must unlock, or a zombie frozen as the player turns away stays locked.
 
 **A zombie does not wear its clothes.** `getWornItems()` on an `IsoZombie` is empty - `IsoZombie` has
 `isUsingWornItems()` precisely because the normal answer is no. It carries `ItemVisual`s, and real `InventoryItem`s

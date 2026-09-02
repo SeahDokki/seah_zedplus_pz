@@ -123,9 +123,28 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
     -- rebuilds the zombie, modData survives, the stats do not necessarily.
     if SZedPlus.isInitialized(zombie) then
         if SZedPlus.isZedPlus(zombie) then
+            -- Re-dress if the clothes are gone.
+            --
+            -- modData survives a save and reload - the chunk writes it - so the
+            -- "already dressed" flag comes back set. The engine does not
+            -- restore what it was wearing though: it rebuilds the zombie from a
+            -- descriptor, and a T5 came back in its own clothes. Asking the
+            -- zombie what it is wearing settles it, rather than trusting a flag
+            -- that outlived the thing it described.
+            local naked = false
+            pcall(function()
+                local visuals = zombie:getItemVisuals()
+                naked = visuals == nil or visuals:size() == 0
+            end)
+            if naked then
+                zombie:getModData()[Keys.outfitApplied] = nil
+                SZedPlus.Appearance.prepare(zombie)
+            end
+
             SZedPlus.Behaviour.queue(zombie)
             SZedPlus.Senses.track(zombie)
             SZedPlus.FormBehaviour.track(zombie)
+            if SZedPlus.Persistence then SZedPlus.Persistence.remember(zombie) end
         end
         return
     end

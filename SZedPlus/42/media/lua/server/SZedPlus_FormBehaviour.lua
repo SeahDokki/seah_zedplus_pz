@@ -75,18 +75,22 @@ local function holdSteadfast()
             local rule = SZedPlus.Forms.get(data[Keys.form])
 
             if rule and rule.holdStill and data[Keys.formTriggered] ~= true then
-                -- Held every tick, not every sweep.
+                -- Held every tick, not every sweep. The sweep runs every six,
+                -- which is far too coarse to hold anything against the AI.
                 --
-                -- The sweep runs every six ticks, which is far too coarse to
-                -- hold anything: a sprinter crosses real ground in six frames
-                -- and the engine re-acquires its target long before the next
-                -- pass clears it. That is why the Stalker kept charging however
-                -- its freeze was written, and why a dormant Mimic still noticed
-                -- players and started crawling. The Colossus was held per tick
-                -- from the start, which is exactly why it always worked.
+                -- Whether the target goes matters, and it is not the same
+                -- answer for both forms. A zombie with NO target wanders: the
+                -- Stalker cleared this way walked off in a straight line
+                -- ignoring the player, which is a wandering zombie, not a
+                -- frozen one. Keeping the target and only refusing movement
+                -- leaves it standing and facing - the coil-head look. A dormant
+                -- Mimic is the opposite case: it must not be onto anyone at
+                -- all, so its target does go.
                 pcall(function()
-                    zombie:setTarget(nil)
-                    zombie:clearAggroList()
+                    if rule.holdClearsTarget then
+                        zombie:setTarget(nil)
+                        zombie:clearAggroList()
+                    end
                     zombie:setCanWalk(false)
                 end)
             elseif rule and rule.holdTarget and data[Keys.formTriggered] then
@@ -635,9 +639,9 @@ local function runStalk(zombie, rule, data, player, distance)
         -- why every version of this failed regardless of how the freeze was
         -- expressed - the detection was only ever half the problem. Locking the
         -- machine is the one thing the AI cannot step around.
+        -- The target is kept: see holdSteadfast. Idle plus a locked state
+        -- machine is what the AI cannot walk out of.
         pcall(function()
-            zombie:setTarget(nil)
-            zombie:clearAggroList()
             zombie:setCanWalk(false)
             zombie:changeState(ZombieIdleState.instance())
             zombie:setStateMachineLocked(true)

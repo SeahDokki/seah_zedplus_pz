@@ -128,7 +128,12 @@ SZedPlus.Forms.BY_FORM = {
         -- Held still every tick while watched. The sweep alone cannot hold a
         -- sprinter: it crosses ground and re-acquires its target between two
         -- passes, which is why every version of the freeze failed.
+        --
+        -- Its target is deliberately KEPT while frozen. Clearing it made it
+        -- wander off in a straight line - a zombie with nothing to chase does
+        -- not stand still, it roams.
         holdStill = true,
+        holdClearsTarget = false,
     },
 
     -- Lies among the corpses and never gets up. Bites at ankles.
@@ -153,8 +158,10 @@ SZedPlus.Forms.BY_FORM = {
         -- One bite in five. The rest tear rather than break the skin - still
         -- bleeding, still an infection risk, but not the death sentence.
         biteChance = 20,
-        -- Held inert every tick while dormant, for the same reason.
+        -- Held inert every tick while dormant, for the same reason. Its target
+        -- does go: a corpse must not be onto anyone.
         holdStill = true,
+        holdClearsTarget = true,
         -- And now and then it takes the leg out from under them.
         tripChance = 25,
     },
