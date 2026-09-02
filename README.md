@@ -38,18 +38,28 @@ tier 5 — the danger is that you cannot tell which one it is until it acts.
 
 ## Spawn mechanics
 
-The initial tier (T1–T4) is decided at spawn time from the current apocalypse day. From T4 onward, dynamic evolution
-becomes possible: the zombie attempts to become a Calamity if the zone conditions are met, or evolves into a T5 after
-four days of survival if it cannot. **T4 is a transitional form** — it is looking for its next outcome.
+Tier and path are decided at spawn time from the current apocalypse day, rolled once, and never revisited.
 
 | Rule | Value |
 |---|---|
 | **Spawn rate** | ~1 Zed+ per 400 ordinary zombies |
-| **Tier thresholds (at spawn)** | T1–T2: day 0+ · T3–T4: day 7+ · T5: via T4, 4 days of survival · T6: via T4, zone conditions |
-| **T4 → T5 condition** | A T4 that could not become a Calamity evolves into a T5 after **4 days of survival** in the world |
-| **T4 → T6 condition** | No Calamity within a **150-tile** radius *and* **≥ 25 zombies** in the zone *(configurable)* |
-| **Regional exclusion** | Only one active Calamity per 150-tile radius. **Permanent refusal** if the slot is taken — the T4 can never try again |
-| **Pre-placed Calamities** | Some Calamities are fixed at world generation near landmark buildings. They occupy the regional slot exactly like a living Calamity |
+| **Tier thresholds** | T1–T2: day 0+ · T3–T4: day 7+ · T5: day 21+ *(all configurable)* |
+| **Path** | Rolled uniformly among the paths left enabled. All four off means nothing goes past T2 |
+| **T5 form** | Rolled from the two forms its path can become, by **weight**. A form at 0 never appears; a path with both forms at 0 produces a T4 instead |
+
+### Why T5 is rolled and not evolved
+
+The design bible specifies a T4 evolving into a T5 after four days of survival, and that cannot be built as written.
+A zombie's modData does not survive the player leaving the area — the population manager discards it — so a T4's
+survival clock would reset every time you walked away. [SZedPlus_Persistence](SZedPlus/42/media/lua/server/SZedPlus_Persistence.lua)
+exists purely to work around that for T5, and even it can only ever match *near enough*.
+
+Rolling at spawn is indistinguishable to the player, because nobody meets the same zombie twice. What it costs is the
+evolution narrative — which was never observable. `T4SurvivalDays` is consequently unused, and kept only so a future
+promotion path has the field it would want.
+
+**T6 remains unreachable.** The Calamities are not implemented, so the zone conditions, the regional exclusion and the
+pre-placed Calamities described below are design, not behaviour.
 
 ---
 

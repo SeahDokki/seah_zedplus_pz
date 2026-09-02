@@ -147,76 +147,92 @@ option SZedPlus.PathRanged
 
 /* ---------------------------------------------------- T5 : final forms -- */
 
-option SZedPlus.FormWitch
+option SZedPlus.WeightWitch
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormWitch,
+    translation = SZedPlus_WeightWitch,
 }
 
-option SZedPlus.FormVolatile
+option SZedPlus.WeightVolatile
 {
-    type = boolean,
-    default = false,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 0,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormVolatile,
+    translation = SZedPlus_WeightVolatile,
 }
 
-option SZedPlus.FormColossus
+option SZedPlus.WeightColossus
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormColossus,
+    translation = SZedPlus_WeightColossus,
 }
 
-option SZedPlus.FormBoomer
+option SZedPlus.WeightBoomer
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormBoomer,
+    translation = SZedPlus_WeightBoomer,
 }
 
-option SZedPlus.FormSneaker
+option SZedPlus.WeightStalker
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormSneaker,
+    translation = SZedPlus_WeightStalker,
 }
 
-option SZedPlus.FormMimic
+option SZedPlus.WeightMimic
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormMimic,
+    translation = SZedPlus_WeightMimic,
 }
 
-option SZedPlus.FormSpitter
+option SZedPlus.WeightSpitter
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormSpitter,
+    translation = SZedPlus_WeightSpitter,
 }
 
-option SZedPlus.FormScout
+option SZedPlus.WeightScout
 {
-    type = boolean,
-    default = true,
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 100,
 
     page = SZedPlusForms,
-    translation = SZedPlus_FormScout,
+    translation = SZedPlus_WeightScout,
 }
 
 /* ------------------------------------------------------ T6 : calamities -- */

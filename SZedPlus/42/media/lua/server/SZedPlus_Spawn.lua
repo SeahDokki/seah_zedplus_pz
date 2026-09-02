@@ -44,8 +44,10 @@ function SZedPlus.Spawn.applySpec(zombie, spec)
     data[Keys.form] = spec.form
     data[Keys.calamityKind] = spec.calamity
 
-    -- T4 is transitional. Record when it got there so the survival delay
-    -- before falling back to a T5 can be measured.
+    -- Recorded but not currently read: T5 is rolled at spawn rather than
+    -- promoted, so there is no survival delay to measure. Kept because it
+    -- costs a single number and it is the field a future promotion path would
+    -- want - see getStageRangeForDay for why promotion was not built.
     if spec.stage == 4 then
         data[Keys.t4SpawnDay] = day
     end
@@ -84,12 +86,36 @@ local function rollStage(day)
 end
 
 --- Build a spec for a natural spawn, or nil if no Zed+ can appear today.
+---
+--- Falls back rather than failing. Every "cannot" here is a legitimate
+--- configuration, not an error: a player who disables all four paths, or zeroes
+--- both forms of every path, should still get the tiers below rather than no
+--- Zed+ at all.
 local function rollSpec(day)
     local stage = rollStage(day)
     if not stage then return nil end
 
     local path = nil
-    if stage >= 3 then
+    local form = nil
+
+    if stage == 5 then
+        -- A T5 needs a path that still has a form to become. Both its forms
+        -- zeroed means that path cannot produce one, so pick among the paths
+        -- that can; if none can, this is a T4 instead.
+        local able = SZedPlus.Config.getPathsThatCanFormT5()
+        if #able == 0 then
+            stage = 4
+        else
+            path = SZedPlus.pickRandom(able)
+            form = SZedPlus.Config.pickFormForPath(path)
+            -- Belt and braces: pickFormForPath already returned non-nil for
+            -- every path in `able`, but the weights are read live and a server
+            -- admin can change them between those two calls.
+            if not form then stage = 4 end
+        end
+    end
+
+    if stage >= 3 and not path then
         -- Only roll among paths the player left enabled. With all four off,
         -- there is no valid T3+ zombie, so fall back to the T1-T2 band.
         local enabledPaths = SZedPlus.Config.getEnabledPaths()
@@ -100,14 +126,41 @@ local function rollSpec(day)
         end
     end
 
-    return { stage = stage, path = path }
+    return { stage = stage, path = path, form = form }
 end
 
 -- ----------------------------------------------------------------- hooks --
 
+--- Is this "zombie" actually a bandit from the Bandits mod?
+---
+--- Bandits are implemented as IsoZombies carrying a "Bandit" animation
+--- variable, so every zombie hook in this mod sees them. Classifying one as a
+--- Zed+ would give a human NPC zombie stats, a T5 outfit and a T5 behaviour -
+--- and the freeze and hold logic fights the bandit AI for control of the same
+--- character.
+---
+--- Reported by IronLungs on the Workshop page, who had it from Slayer's own mod
+--- page. Unconfirmed as an observed conflict, but the check costs nothing and
+--- the failure mode if it is real is bad, so it goes in either way.
+---
+--- getVariableBoolean returns false for a variable that was never set, so this
+--- is safe with the Bandits mod absent. Wrapped anyway: it runs on every single
+--- zombie creation, and this hook is not a place to risk a throw.
+local function isBandit(zombie)
+    local ok, bandit = pcall(function()
+        return zombie:getVariableBoolean("Bandit")
+    end)
+    return ok and bandit == true
+end
+
 --- Entry point: decide what this zombie is.
 function SZedPlus.Spawn.onZombieCreate(zombie)
     if zombie == nil then return end
+
+    -- Bandits are not zombies, whatever the class says. Leave them alone
+    -- entirely - before the forced-spec branch, so the debug menu cannot turn
+    -- one into a Zed+ by accident either.
+    if isBandit(zombie) then return end
 
     -- A forced spec wins over everything, including the initialized guard:
     -- the debug menu spawns a zombie and claims the very next creation.

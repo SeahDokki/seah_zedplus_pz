@@ -39,14 +39,18 @@ local DEFAULTS = {
     PathStealth = true,
     PathRanged = true,
 
-    FormWitch = true,
-    FormVolatile = false,
-    FormColossus = true,
-    FormBoomer = true,
-    FormSneaker = true,
-    FormMimic = true,
-    FormSpitter = true,
-    FormScout = true,
+    -- Relative weights, 0-100. A form at 0 never spawns, which is what the
+    -- old on/off switches did - so they are gone and this replaces them. The
+    -- numbers are relative to each other WITHIN a path, not percentages: a
+    -- path only ever picks between its own two forms.
+    WeightWitch = 100,
+    WeightVolatile = 0,
+    WeightColossus = 100,
+    WeightBoomer = 100,
+    WeightStalker = 100,
+    WeightMimic = 100,
+    WeightSpitter = 100,
+    WeightScout = 100,
 
     CalamitiesEnabled = false,
     CalamityHost = false,
@@ -113,11 +117,24 @@ end
 --- Which stage band may be rolled on a given apocalypse day.
 --- Returns the inclusive [min, max] stage range, or nil if no Zed+ can spawn.
 ---
---- Only T1-T4 are ever rolled at spawn. T5 and T6 are reached by evolving a
---- T4, so their day thresholds are checked at promotion time, not here.
+--- T5 is rolled at spawn, not reached by promoting a T4.
+---
+--- The bible specifies promotion after four days of survival, and that cannot
+--- be built as written: a zombie's modData does not survive the player leaving
+--- the area - the population manager discards it - so a T4's survival clock
+--- would reset every time you walked away. SZedPlus_Persistence exists purely
+--- to work around that for T5, and it can only ever match "near enough".
+---
+--- Rolling at spawn is indistinguishable to the player, because they never
+--- meet the same zombie twice. What it costs is the evolution narrative, which
+--- nobody could observe anyway. T4SurvivalDays is consequently unused.
+---
+--- T6 is still unreachable: the Calamities are not implemented.
 function SZedPlus.Config.getStageRangeForDay(day)
     local get = SZedPlus.Config.get
-    if day >= get("DayTier3") then
+    if day >= get("DayTier5") then
+        return 1, 5
+    elseif day >= get("DayTier3") then
         return 1, 4
     elseif day >= get("DayTier1") then
         return 1, 2
@@ -137,22 +154,76 @@ function SZedPlus.Config.getEnabledPaths()
     return enabled
 end
 
---- Maps each T5 form to the option that gates it.
-local FORM_OPTIONS = {
-    witch    = "FormWitch",
-    volatile = "FormVolatile",
-    colossus = "FormColossus",
-    boomer   = "FormBoomer",
-    stalker  = "FormSneaker",
-    mimic    = "FormMimic",
-    spitter  = "FormSpitter",
-    scout    = "FormScout",
+--- Which T5 forms each path can become, and the option carrying each weight.
+---
+--- The pairing is the bible's evolution tree, and it is also what the sandbox
+--- labels tell the player ("Witch (Fast)", "Colossus (Tank)", ...). A path only
+--- ever picks between its own two forms, which is why the weights are relative
+--- within a path rather than across all eight.
+local FORMS_BY_PATH = {
+    fast    = { { "witch",    "WeightWitch"    }, { "volatile", "WeightVolatile" } },
+    tank    = { { "colossus", "WeightColossus" }, { "boomer",   "WeightBoomer"   } },
+    stealth = { { "stalker",  "WeightStalker"  }, { "mimic",    "WeightMimic"    } },
+    ranged  = { { "spitter",  "WeightSpitter"  }, { "scout",    "WeightScout"    } },
 }
 
+--- The weight a form is currently set to, clamped to 0-100. Zero means never.
+function SZedPlus.Config.getFormWeight(form)
+    for _, forms in pairs(FORMS_BY_PATH) do
+        for _, entry in ipairs(forms) do
+            if entry[1] == form then
+                local weight = SZedPlus.Config.get(entry[2])
+                if type(weight) ~= "number" then return 0 end
+                if weight < 0 then return 0 end
+                if weight > 100 then return 100 end
+                return weight
+            end
+        end
+    end
+    return 0
+end
+
 function SZedPlus.Config.isFormEnabled(form)
-    local option = FORM_OPTIONS[form]
-    if not option then return false end
-    return SZedPlus.Config.get(option) == true
+    return SZedPlus.Config.getFormWeight(form) > 0
+end
+
+--- Pick a T5 form for `path`, weighted. nil if the player zeroed both of them,
+--- which the caller treats as "this path cannot produce a T5" rather than as an
+--- error - it is a legitimate configuration.
+function SZedPlus.Config.pickFormForPath(path)
+    local forms = FORMS_BY_PATH[path]
+    if not forms then return nil end
+
+    local total = 0
+    for _, entry in ipairs(forms) do
+        total = total + SZedPlus.Config.getFormWeight(entry[1])
+    end
+    if total <= 0 then return nil end
+
+    local roll = ZombRand(total)
+    local seen = 0
+    for _, entry in ipairs(forms) do
+        seen = seen + SZedPlus.Config.getFormWeight(entry[1])
+        if roll < seen then return entry[1] end
+    end
+
+    -- Unreachable unless the weights changed mid-loop; take the last non-zero.
+    for i = #forms, 1, -1 do
+        if SZedPlus.Config.getFormWeight(forms[i][1]) > 0 then return forms[i][1] end
+    end
+    return nil
+end
+
+--- Paths that can currently produce a T5 at all: enabled, and with at least
+--- one of their two forms above zero.
+function SZedPlus.Config.getPathsThatCanFormT5()
+    local able = {}
+    for _, path in ipairs(SZedPlus.Config.getEnabledPaths()) do
+        if SZedPlus.Config.pickFormForPath(path) ~= nil then
+            able[#able + 1] = path
+        end
+    end
+    return able
 end
 
 --- Maps each Calamity to the option that gates it.
