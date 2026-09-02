@@ -237,9 +237,31 @@ function SZedPlus.Appearance.apply(zombie)
         SZedPlus.log("boomer %s its bottle", hasBottle and "still has" or "already lost")
     end
 
-    -- Gender and the auto-dress flag were handled by prepare() at creation.
-    -- Re-assert the flag: the engine can set it again while the zombie is
-    -- being built.
+    -- Gender has to be right BEFORE the outfit name is looked up, and this is
+    -- the line that decides whether a T5 gets dressed at all.
+    --
+    -- HumanVisual.dressInNamedOutfit resolves the name through
+    -- OutfitManager.FindMaleOutfit or FindFemaleOutfit according to isFemale,
+    -- and most outfits exist in exactly one of the two lists - WeddingDress is
+    -- female-only, ConstructionWorker male-only (checked against
+    -- media/clothing/clothing.xml). Ask the wrong list and the lookup returns
+    -- null, the engine dresses the zombie in nothing, and it does not complain:
+    -- a male Witch walked around naked while the log said she was dressed.
+    --
+    -- prepare() sets this at creation already, but the engine finishes building
+    -- a zombie after OnZombieCreate returns and settles gender itself - the same
+    -- reason stats are queued rather than set from that hook. So re-assert it
+    -- here, where it is about to be used, and before any clothing: setFemaleEtc
+    -- rebuilds the model and drops whatever the zombie was wearing.
+    if outfit.female ~= nil then
+        pcall(function() zombie:setFemaleEtc(outfit.female) end)
+    end
+
+    local isFemale
+    pcall(function() isFemale = zombie:isFemale() end)
+
+    -- Re-assert the auto-dress flag too: the engine can set it again while the
+    -- zombie is being built.
     pcall(function() zombie:setDressInRandomOutfit(false) end)
 
     -- The named outfit first, and it replaces everything: this is the engine's
@@ -325,19 +347,38 @@ function SZedPlus.Appearance.apply(zombie)
     --
     -- On a naturally spawned zombie it often does not. The engine finishes
     -- building the zombie after OnZombieCreate returns - the same reason stats
-    -- are queued rather than set - and for clothing that can land AFTER this
-    -- runs, stripping what was just put on. The flag was set anyway, so nothing
-    -- ever retried and the T5 stayed naked for the rest of its life.
+    -- are queued rather than set - so both the gender and the clothing set here
+    -- can be undone afterwards. The flag used to be set anyway, so nothing ever
+    -- retried and the T5 stayed naked for the rest of its life.
     --
     -- Debug-spawned zombies never showed it because they arrive fully built,
     -- and reloaded ones recovered by accident: the reload path clears the flag
     -- and re-queues, which is a retry by another name. That asymmetry is what
     -- identified this.
     --
-    -- So verify instead of assuming, and let the caller retry. A bigger delay
-    -- would only be a different guess; asking the zombie what it is wearing is
-    -- the same principle already used on the reload path.
-    if wantsClothing(outfit) then
+    -- ASK THE RIGHT QUESTION. The first version of this check counted item
+    -- visuals and required one - which the Witch's veil satisfied on its own,
+    -- because items are worn through the inventory and do not care about
+    -- gender. So the check passed, the missing wedding dress went unnoticed
+    -- across two playtests, and the log cheerfully read "dressed T5 witch".
+    -- getOutfitName() is the engine's own answer to the question being asked,
+    -- and it cannot be satisfied by a hat.
+    if outfit.outfit then
+        local applied
+        pcall(function() applied = zombie:getOutfitName() end)
+
+        if applied ~= outfit.outfit then
+            SZedPlus.log("dressing %s: outfit '%s' did not take - zombie has '%s', "
+                .. "female=%s - will retry",
+                tostring(data[Keys.form]), tostring(outfit.outfit),
+                tostring(applied), tostring(isFemale))
+            return false
+        end
+    end
+
+    -- An outfit made only of items has no name to check, so fall back to
+    -- asking whether anything at all is being worn.
+    if outfit.outfit == nil and wantsClothing(outfit) then
         local visuals = 0
         pcall(function()
             local list = zombie:getItemVisuals()
@@ -352,8 +393,9 @@ function SZedPlus.Appearance.apply(zombie)
     end
 
     data[Keys.outfitApplied] = true
-    SZedPlus.log("dressed %s: outfit '%s' + %d item(s)",
-        SZedPlus.describe(zombie), tostring(outfit.outfit or "-"), worn)
+    SZedPlus.log("dressed %s: outfit '%s' + %d item(s), female=%s",
+        SZedPlus.describe(zombie), tostring(outfit.outfit or "-"), worn,
+        tostring(isFemale))
     return true
 end
 
