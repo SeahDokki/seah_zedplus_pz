@@ -37,6 +37,10 @@ local RING_RADIUS = 2
 --- How many zombies stand in the ring, before the one in the middle.
 local RING_MIN, RING_MAX = 5, 8
 
+--- Which troupe a dancer belongs to. Several can be on stage at once - the
+--- debug menu makes that easy - and they must break up independently.
+local nextTroupe = 0
+
 --- How close a player has to get before the dance breaks up.
 ---
 --- Proximity rather than aggro, and that is not a shortcut. A dancer is held
@@ -44,7 +48,7 @@ local RING_MIN, RING_MAX = 5, 8
 --- position the dormant Mimic is in, and the same reason it wakes on distance.
 --- Waiting for aggro on a zombie that is forbidden from having any would leave
 --- the troupe frozen forever, which is the failure mode this mod keeps finding.
-local WAKE_DIST = 6
+local WAKE_DIST = 4
 
 --- The centre dancer's outfit: Boilersuit_Prisoner, which is the orange one.
 --- Inmate is in the male outfit list only, so the gender has to match or the
@@ -54,10 +58,39 @@ local LEAD_OUTFIT = "Inmate"
 --- The looping track, declared in media/scripts/SZedPlus_Sounds.txt.
 local LEAD_SOUND = "SZedPlus_Thriller"
 
---- The eight facings, in turning order. Held by name because a Java enum value
---- read from the global table cannot be compared by identity in Kahlua, which
---- cost several rounds on the Stalker - see facingVector in FormBehaviour.
-local TURN_ORDER = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
+--- The eight facings, in turning order, resolved once by explicit field access.
+---
+--- NOT IsoDirections[name]. All eight constants exist - N, NE, E, SE, S, SW, W,
+--- NW, checked in the class - but Kahlua does not resolve a Java enum class
+--- indexed by a dynamic string, so the lookup returned nil, setDir stored a null
+--- direction, and the engine then threw once per tick per dancer:
+--- "Cannot invoke IsoDirections.ordinal() because dir is null". Spawning a few
+--- troupes filled the log with it.
+---
+--- Reading the fields by name in source is a different operation from indexing
+--- the table with a variable, and it is the one that works. Built lazily
+--- because a Java global is safer touched on first use than at file load.
+local turnOrder = nil
+
+local function getTurnOrder()
+    if turnOrder ~= nil then return turnOrder end
+
+    local ok, built = pcall(function()
+        return {
+            IsoDirections.N,  IsoDirections.NE, IsoDirections.E,  IsoDirections.SE,
+            IsoDirections.S,  IsoDirections.SW, IsoDirections.W,  IsoDirections.NW,
+        }
+    end)
+
+    if not ok or built == nil or built[8] == nil then
+        SZedPlus.logError("thriller: could not resolve IsoDirections - dancers will not turn")
+        turnOrder = {}
+        return turnOrder
+    end
+
+    turnOrder = built
+    return turnOrder
+end
 
 -- ----------------------------------------------------------------- state --
 
@@ -145,9 +178,19 @@ local function spawnDancer(square, outfit, female)
 end
 
 --- Point a zombie at one of the eight compass directions.
+---
+--- Never called with nil: setDir accepts a null and the engine then throws on
+--- every frame that asks the zombie which way it is facing, which is not an
+--- error the caller sees.
 local function face(zombie, step)
-    local name = TURN_ORDER[(step % #TURN_ORDER) + 1]
-    pcall(function() zombie:setDir(IsoDirections[name]) end)
+    local order = getTurnOrder()
+    local count = #order
+    if count == 0 then return end
+
+    local direction = order[(step % count) + 1]
+    if direction == nil then return end
+
+    pcall(function() zombie:setDir(direction) end)
 end
 
 -- ----------------------------------------------------------------- event --
@@ -155,6 +198,9 @@ end
 --- Put on the show, centred on `square`.
 function SZedPlus.Thriller.stage(square)
     if square == nil then return false end
+
+    nextTroupe = nextTroupe + 1
+    local troupe = nextTroupe
 
     -- The lead, in the middle, in orange. Male because the outfit only exists
     -- in the male list.
@@ -184,7 +230,9 @@ function SZedPlus.Thriller.stage(square)
     end
 
     dancerCount = dancerCount + 1
-    dancers[dancerCount] = { zombie = lead, step = 0, lead = true, sound = handle }
+    dancers[dancerCount] = {
+        zombie = lead, step = 0, lead = true, sound = handle, troupe = troupe,
+    }
 
     -- The ring, evenly spaced around it. A position that is not free is simply
     -- skipped: a gap in the circle is fine, a zombie inside a wall is not.
@@ -205,13 +253,15 @@ function SZedPlus.Thriller.stage(square)
                 dancerCount = dancerCount + 1
                 -- Offset by position so the ring turns as one shape rather
                 -- than every zombie facing the same way at once.
-                dancers[dancerCount] = { zombie = zombie, step = index }
+                dancers[dancerCount] = {
+                    zombie = zombie, step = index, troupe = troupe,
+                }
             end
         end
     end
 
-    SZedPlus.logAlways("thriller: %d dancer(s) at %d,%d,%d",
-        placed + 1, square:getX(), square:getY(), square:getZ())
+    SZedPlus.logAlways("thriller: troupe %d, %d dancer(s) at %d,%d,%d",
+        troupe, placed + 1, square:getX(), square:getY(), square:getZ())
     return true
 end
 
@@ -344,24 +394,26 @@ end
 local function danceStep(turn)
     if dancerCount == 0 then return end
 
-    -- Anyone close enough ends it for everybody.
-    local broken = false
+    -- Which troupes are done, by id. Per troupe rather than globally: with two
+    -- rings on the map, walking up to one used to break up the other as well,
+    -- wherever it was.
+    local broken = {}
+
     for index = 1, dancerCount do
-        local zombie = dancers[index].zombie
-        if zombie ~= nil and not zombie:isDead() and zombie:getSquare() ~= nil then
+        local entry = dancers[index]
+        local zombie = entry.zombie
+        if not broken[entry.troupe] and zombie ~= nil and not zombie:isDead()
+            and zombie:getSquare() ~= nil then
+
             local _, distance = nearestPlayer(zombie)
             if distance ~= nil and distance <= WAKE_DIST then
-                broken = true
-                break
-            end
-
-            -- Shot from out there, or otherwise onto someone despite the
-            -- clearing: that counts too.
-            local hasTarget = false
-            pcall(function() hasTarget = zombie:getTarget() ~= nil end)
-            if hasTarget then
-                broken = true
-                break
+                broken[entry.troupe] = true
+            else
+                -- Shot from out there, or otherwise onto someone despite the
+                -- clearing: that counts too.
+                local hasTarget = false
+                pcall(function() hasTarget = zombie:getTarget() ~= nil end)
+                if hasTarget then broken[entry.troupe] = true end
             end
         end
     end
@@ -375,7 +427,7 @@ local function danceStep(turn)
         local alive = zombie ~= nil and not zombie:isDead()
             and zombie:getSquare() ~= nil
 
-        if alive and not broken then
+        if alive and not broken[entry.troupe] then
             hold(zombie, turn)
 
             if turn then
@@ -397,8 +449,8 @@ local function danceStep(turn)
         end
     end
 
-    if broken and dancerCount > 0 then
-        SZedPlus.log("thriller: the dance broke up")
+    for troupe in pairs(broken) do
+        SZedPlus.log("thriller: troupe %d broke up", troupe)
     end
 
     dancers = remaining
