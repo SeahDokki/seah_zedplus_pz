@@ -184,6 +184,40 @@ function SZedPlus.Thriller.stage(square)
     return true
 end
 
+--- Stage the show near this player, on demand, ignoring the rarity roll.
+---
+--- Driven from the debug menu. It prefers a road, because that is where the
+--- event belongs and the placement rules are worth exercising, but falls back
+--- to any free square: someone testing this indoors or in a field still wants
+--- to see it, and refusing would look like a broken menu entry rather than a
+--- deliberate rule.
+function SZedPlus.Thriller.spawnNear(player)
+    if player == nil then return false end
+
+    local square = findStage(player)
+    if square ~= nil then
+        return SZedPlus.Thriller.stage(square)
+    end
+
+    local cell = getCell()
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+
+    for _ = 1, 30 do
+        local angle = ZombRand(360) * math.pi / 180
+        local distance = PLACE_MIN + ZombRand(PLACE_MAX - PLACE_MIN + 1)
+        local candidate = cell and cell:getGridSquare(
+            math.floor(px + math.cos(angle) * distance),
+            math.floor(py + math.sin(angle) * distance), pz)
+        if candidate and candidate:isFree(false) then
+            SZedPlus.logAlways("thriller: no road nearby, staging on open ground")
+            return SZedPlus.Thriller.stage(candidate)
+        end
+    end
+
+    SZedPlus.logError("thriller: nowhere to put the dancers")
+    return false
+end
+
 --- Roll for the event as this player enters a new square.
 local function considerPlayer(player)
     if player == nil or player:isDead() then return end

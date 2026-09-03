@@ -41,5 +41,6 @@
     "IGUI_SZedPlus_StatsSenses": "Senses",
     "IGUI_SZedPlus_DebugCreatures": "Creatures",
     "IGUI_SZedPlus_StatsForm": "Behaviour",
-    "IGUI_SZedPlus_DebugRedress": "Redress nearby T5 forms"
+    "IGUI_SZedPlus_DebugRedress": "Redress nearby T5 forms",
+    "IGUI_SZedPlus_DebugThriller": "Spawn Thriller"
 }

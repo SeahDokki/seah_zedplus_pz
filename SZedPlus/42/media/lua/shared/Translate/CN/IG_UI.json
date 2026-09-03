@@ -41,5 +41,6 @@
     "IGUI_SZedPlus_StatsSenses": "感知",
     "IGUI_SZedPlus_DebugCreatures": "生物",
     "IGUI_SZedPlus_StatsForm": "行为",
-    "IGUI_SZedPlus_DebugRedress": "重新为附近的 T5 形态穿衣"
+    "IGUI_SZedPlus_DebugRedress": "重新为附近的 T5 形态穿衣",
+    "IGUI_SZedPlus_DebugThriller": "生成《Thriller》彩蛋"
 }

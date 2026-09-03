@@ -277,6 +277,7 @@ local HANDLERS = {
     removeNearby = function(player) SZedPlus.DebugSpawn.removeNearby(player) end,
     getStats = function(player, args) SZedPlus.DebugSpawn.sendStats(player, args) end,
     redressNearby = function(player) SZedPlus.DebugSpawn.redressNearby(player) end,
+    thriller = function(player) SZedPlus.Thriller.spawnNear(player) end,
     spawnCreature = function(player, args) SZedPlus.DebugSpawn.spawnCreature(player, args) end,
 }
 

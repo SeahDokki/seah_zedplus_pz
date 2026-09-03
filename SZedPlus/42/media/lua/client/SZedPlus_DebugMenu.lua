@@ -70,6 +70,11 @@ function SZedPlus.DebugMenu.onRedressNearby(playerNum)
     request(playerNum, "redressNearby")
 end
 
+--- Stage the Thriller easter egg here, without waiting on a 1-in-5000 roll.
+function SZedPlus.DebugMenu.onThriller(playerNum)
+    request(playerNum, "thriller")
+end
+
 --- Spawn a ZED+ creature (animal species) rather than a zombie.
 function SZedPlus.DebugMenu.onSpawnCreature(playerNum, spec)
     request(playerNum, "spawnCreature", spec)
@@ -219,6 +224,8 @@ function SZedPlus.DebugMenu.build(parentMenu, playerNum, worldobjects)
         SZedPlus.DebugMenu.onGetStats, findTargetZombie(playerNum, worldobjects or {}))
     rootMenu:addOption(getText("IGUI_SZedPlus_DebugInspect"), playerNum,
         SZedPlus.DebugMenu.onInspect)
+    rootMenu:addOption(getText("IGUI_SZedPlus_DebugThriller"), playerNum,
+        SZedPlus.DebugMenu.onThriller)
     rootMenu:addOption(getText("IGUI_SZedPlus_DebugRedress"), playerNum,
         SZedPlus.DebugMenu.onRedressNearby)
     rootMenu:addOption(getText("IGUI_SZedPlus_DebugRemove"), playerNum,

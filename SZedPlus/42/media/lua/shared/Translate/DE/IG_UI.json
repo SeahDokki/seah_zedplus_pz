@@ -41,5 +41,6 @@
     "IGUI_SZedPlus_StatsSenses": "Wahrnehmung",
     "IGUI_SZedPlus_DebugCreatures": "Kreaturen",
     "IGUI_SZedPlus_StatsForm": "Verhalten",
-    "IGUI_SZedPlus_DebugRedress": "Nahe T5-Formen neu einkleiden"
+    "IGUI_SZedPlus_DebugRedress": "Nahe T5-Formen neu einkleiden",
+    "IGUI_SZedPlus_DebugThriller": "Thriller erscheinen lassen"
 }
