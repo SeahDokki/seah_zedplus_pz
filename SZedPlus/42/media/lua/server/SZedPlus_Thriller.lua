@@ -8,10 +8,10 @@
 --- is rolled from where the player walks rather than from a tier, and nothing
 --- here reads or writes a Zed+ tier. It has its own two sandbox options.
 ---
---- No sound. The design calls for a modified Thriller loop played as a world
---- sound, and there is no .ogg to play - shipping a random vanilla noise instead
---- would be worse than silence. The audio is the one part of the spec still
---- missing, and it is what would make the whole thing land.
+--- The loop plays from the lead's own emitter, so it is positional: it comes
+--- from the middle of the ring, gets louder as you approach, and dies with him.
+--- It cuts the moment the lead stops dancing, which is the moment he notices
+--- you - the joke ends exactly when it stops being funny.
 ---
 --- Files under server/ are loaded on clients too.
 if isClient() then return end
@@ -41,6 +41,9 @@ local RING_MIN, RING_MAX = 5, 8
 --- Inmate is in the male outfit list only, so the gender has to match or the
 --- lookup silently dresses nobody - see the note in SZedPlus_Appearance.
 local LEAD_OUTFIT = "Inmate"
+
+--- The looping track, declared in media/scripts/SZedPlus_Sounds.txt.
+local LEAD_SOUND = "SZedPlus_Thriller"
 
 --- The eight facings, in turning order. Held by name because a Java enum value
 --- read from the global table cannot be compared by identity in Kahlua, which
@@ -152,8 +155,17 @@ function SZedPlus.Thriller.stage(square)
         return false
     end
 
+    -- The music comes from the lead rather than from the square: an emitter
+    -- attached to him is positional for free, and it stops when he does.
+    local handle = nil
+    pcall(function() handle = lead:getEmitter():playSoundLooped(LEAD_SOUND) end)
+    if handle == nil then
+        SZedPlus.logError("thriller: '%s' would not play - is the sound script loaded?",
+            LEAD_SOUND)
+    end
+
     dancerCount = dancerCount + 1
-    dancers[dancerCount] = { zombie = lead, step = 0, lead = true }
+    dancers[dancerCount] = { zombie = lead, step = 0, lead = true, sound = handle }
 
     -- The ring, evenly spaced around it. A position that is not free is simply
     -- skipped: a gap in the circle is fine, a zombie inside a wall is not.
@@ -278,6 +290,12 @@ local function danceStep()
         if keep then
             remainingCount = remainingCount + 1
             remaining[remainingCount] = entry
+        elseif entry.sound ~= nil then
+            -- The lead has stopped dancing - noticed the player, or died. Cut
+            -- the music with him rather than leaving a loop playing over a
+            -- zombie that is now walking at you.
+            pcall(function() zombie:getEmitter():stopSound(entry.sound) end)
+            entry.sound = nil
         end
     end
 

@@ -1,0 +1,43 @@
+module SZedPlus
+{
+    /*
+     * The Thriller easter egg's loop.
+     *
+     * Build 42 ships no sounds.txt of its own - the game's audio lives in FMOD
+     * banks - but ScriptManager still parses `sound` blocks into
+     * GameSoundScript, and a GameSound declared here is playable by name from
+     * Lua through any emitter. That is the route a mod has.
+     *
+     * category and master are enum names, not free text: SoundCategory accepts
+     * General, Item, Player, Zombie, World, Vehicle, Animals, Music, Meta,
+     * Object and Auto; GameSound.MasterVolume accepts Primary, Ambient, Music
+     * and VehicleEngine. Ambient puts it under the ambient volume slider, which
+     * is where a background loop belongs - a player who has turned ambience
+     * down has said what they want.
+     *
+     * The name is prefixed because sound names are one flat global namespace
+     * shared with every other mod, the same as texture names.
+     */
+    sound SZedPlus_Thriller
+    {
+        category = World,
+        master = Ambient,
+        loop = true,
+
+        /* One at a time per emitter: the lead is the only emitter, but a
+           second copy starting over the first would be audible and wrong. */
+        maxInstancesPerEmitter = 1,
+
+        clip
+        {
+            file = media/sound/mj_thriller_egg.ogg,
+
+            /* Audible from about fifteen tiles, which is roughly the point at
+               which the ring becomes visible. Below two tiles it stops getting
+               louder, so standing in the middle is not painful. */
+            distanceMin = 2,
+            distanceMax = 15,
+            volume = 0.5,
+        }
+    }
+}
