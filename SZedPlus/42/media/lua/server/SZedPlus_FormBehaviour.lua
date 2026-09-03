@@ -163,6 +163,18 @@ local function makeNoise(zombie, radius, volume)
     end
 end
 
+--- Play a sound the PLAYER can hear, from the zombie's own position.
+---
+--- Not the same thing as makeNoise above, and both are needed. addSound feeds
+--- the AI's world-sound system - it is what other zombies react to and it is
+--- completely silent - while this is audible and attracts nothing. The Witch
+--- has been screaming inaudibly since she was written: the horde heard her, the
+--- player never did.
+local function playVoice(zombie, soundName)
+    if zombie == nil or soundName == nil then return end
+    pcall(function() zombie:getEmitter():playSound(soundName) end)
+end
+
 --- Force a walk type outright, for forms whose speed is a promise rather than
 --- a modifier. Re-asserted every sweep: the engine rewrites walkType when a
 --- zombie changes state, so setting it once at spawn does not hold.
@@ -426,6 +438,7 @@ local function runAmbush(zombie, rule, data, player, distance)
         zombie:setCanWalk(true)
     end)
     makeNoise(zombie, rule.screamRadius, rule.screamVolume)
+    playVoice(zombie, rule.voice)
     chase(zombie, player)
     SZedPlus.log("witch woke and screamed")
 end

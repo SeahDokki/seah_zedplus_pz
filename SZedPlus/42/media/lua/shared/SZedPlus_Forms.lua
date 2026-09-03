@@ -25,6 +25,9 @@ SZedPlus.Forms.BY_FORM = {
         triggerDist = 8,
         screamRadius = 30,
         screamVolume = 30,
+        -- What the player hears. screamRadius above is what the ZOMBIES hear:
+        -- two separate systems, and only this one is audible.
+        voice = "SZedPlus_WitchScream",
         relentless = true,
         -- Re-asserted every tick. The sweep alone let the engine drop a distant
         -- target between passes, so she quietly gave up - the opposite of what

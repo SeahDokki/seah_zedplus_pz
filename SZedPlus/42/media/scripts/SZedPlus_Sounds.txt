@@ -40,4 +40,58 @@ module SZedPlus
             volume = 0.5,
         }
     }
+
+    /*
+     * The Witch's scream, as four takes.
+     *
+     * One GameSound with several clips is how variation is done: GameSound has
+     * getRandomClip and picks per play, so four clips here is four takes of the
+     * same scream rather than four sounds to choose between in Lua. Hearing the
+     * identical scream twice in one night would undo her.
+     *
+     * distanceMax matches the Witch's screamRadius of 30 in SZedPlus_Forms, on
+     * purpose: the player hears her from exactly as far as the zombies she is
+     * calling do. If that radius is retuned, this follows it.
+     *
+     * Primary rather than Ambient - this is a creature, not weather.
+     */
+    sound SZedPlus_WitchScream
+    {
+        category = Zombie,
+        master = Primary,
+        loop = false,
+        maxInstancesPerEmitter = 1,
+
+        clip
+        {
+            file = media/sound/witch_screetch_1.ogg,
+            distanceMin = 3,
+            distanceMax = 30,
+            volume = 1.0,
+        }
+
+        clip
+        {
+            file = media/sound/witch_screetch_2.ogg,
+            distanceMin = 3,
+            distanceMax = 30,
+            volume = 1.0,
+        }
+
+        clip
+        {
+            file = media/sound/witch_screetch_3.ogg,
+            distanceMin = 3,
+            distanceMax = 30,
+            volume = 1.0,
+        }
+
+        clip
+        {
+            file = media/sound/witch_screetch_4.ogg,
+            distanceMin = 3,
+            distanceMax = 30,
+            volume = 1.0,
+        }
+    }
 }
