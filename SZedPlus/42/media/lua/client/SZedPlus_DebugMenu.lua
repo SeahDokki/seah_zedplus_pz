@@ -28,24 +28,16 @@ local function request(playerNum, command, args)
     end
 
     -- Single player or co-op host: the server files live in this same process,
-    -- so call straight through. Keep this a table rather than a chain of
-    -- elseifs, so a new command cannot be wired into the menu and silently do
-    -- nothing outside multiplayer.
-    local handlers = SZedPlus.DebugSpawn
-    if handlers == nil then
+    -- so call straight through - through the SAME table the multiplayer path
+    -- uses. This used to be a second copy of it, and the copy went stale: two
+    -- commands reached the menu, worked in multiplayer, and answered "no local
+    -- handler" in single player, which is where anyone would actually use them.
+    if SZedPlus.DebugSpawn == nil or SZedPlus.DebugSpawn.COMMANDS == nil then
         print("[SZedPlus][ERROR] debug server functions are not loaded")
         return
     end
 
-    local direct = {
-        spawn = handlers.spawn,
-        inspect = handlers.inspect,
-        removeNearby = handlers.removeNearby,
-        getStats = handlers.sendStats,
-        spawnCreature = handlers.spawnCreature,
-    }
-
-    local handler = direct[command]
+    local handler = SZedPlus.DebugSpawn.COMMANDS[command]
     if handler == nil then
         print("[SZedPlus][ERROR] no local handler for debug command '" .. tostring(command) .. "'")
         return

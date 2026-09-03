@@ -393,6 +393,18 @@ local function runAmbush(zombie, rule, data, player, distance)
                 -- did nothing, which read as her losing interest.
                 pcall(function() zombie:setCanWalk(true) end)
                 chase(zombie, player)
+
+                -- She announces herself on arrival. Without it the teleport is
+                -- silent by design - she is never seen to appear - so the only
+                -- way to learn she has closed the gap is to be caught by it.
+                -- The scream is the tell, and it is the whole reason to give
+                -- her one.
+                --
+                -- Voice only, deliberately: makeNoise here would call the horde
+                -- every time she relocates, and she relocates as often as the
+                -- player keeps running. The scare is for the player to hear.
+                playVoice(zombie, rule.voice)
+
                 SZedPlus.log("witch closed the distance")
             end
         end

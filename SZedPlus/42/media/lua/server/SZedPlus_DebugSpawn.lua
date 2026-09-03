@@ -271,7 +271,16 @@ function SZedPlus.DebugSpawn.redressNearby(player)
     SZedPlus.logAlways("debug: redressed %d Zed+ with a form", touched)
 end
 
-local HANDLERS = {
+--- Every debug command, by name.
+---
+--- Public because BOTH paths must use this one table. There used to be a second
+--- copy in the client file for the single-player route, and it went stale
+--- exactly as you would expect: 'redressNearby' and 'thriller' were wired into
+--- the menu, dispatched fine in multiplayer, and printed "no local handler" in
+--- single player - which is where they were going to be used. The comment beside
+--- that copy promised a table would stop a command silently doing nothing. A
+--- duplicated table stops nothing.
+SZedPlus.DebugSpawn.COMMANDS = {
     spawn = function(player, args) SZedPlus.DebugSpawn.spawn(player, args) end,
     inspect = function(player) SZedPlus.DebugSpawn.inspect(player) end,
     removeNearby = function(player) SZedPlus.DebugSpawn.removeNearby(player) end,
@@ -289,7 +298,7 @@ local HANDLERS = {
 local function onClientCommand(module, command, player, args)
     if module ~= MODULE then return end
 
-    local handler = HANDLERS[command]
+    local handler = SZedPlus.DebugSpawn.COMMANDS[command]
     if handler == nil then return end
 
     if not player:getRole():hasCapability(Capability.UseDebugContextMenu) then
