@@ -191,6 +191,15 @@ a method - `hearing` is an `int` field with no setter, so per-zombie hearing can
 threw at runtime. Verify a signature before building on it: `scratchpad/methodsig.py <file.class> <name>` parses the
 constant pool and prints real method descriptors.
 
+**A method on the base class is not necessarily callable on the instance.** Kahlua resolves against the concrete
+class, so a method declared on a parent and not present on the subclass throws at the call site even though it is
+plainly there in the hierarchy. `getEmitter()` on a character returns a `CharacterSoundEmitter`, which has
+`playSound` but no `playSoundLooped` - that one lives on `BaseSoundEmitter` - and the looping call threw. Check the
+class the object actually is, not the class that documents the method: `tools/methodsig.py` takes a `.class` file,
+and the debugger's object stack names the runtime type. This is the third shape of the same trap, after `setHearing`
+(a field, not a method) and `forceModelScript` (a real setter nothing reads); the common lesson is that "the name
+exists somewhere" is never the question worth asking.
+
 **Lua cannot read or write Java fields.** Only methods are exposed. `IsoZombie.hearing` and `IsoZombie.sight` are
 `public int` with no setter - they are what the Hearing and Sight sandbox options drive, and they are unreachable
 from Lua in both directions (verified in game: the write threw, the read returned nil). A public field is NOT a

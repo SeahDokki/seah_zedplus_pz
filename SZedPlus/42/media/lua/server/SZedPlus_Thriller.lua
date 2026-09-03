@@ -157,8 +157,18 @@ function SZedPlus.Thriller.stage(square)
 
     -- The music comes from the lead rather than from the square: an emitter
     -- attached to him is positional for free, and it stops when he does.
+    --
+    -- playSound, not playSoundLooped. The looping one exists on
+    -- BaseSoundEmitter but NOT on CharacterSoundEmitter, which is what a
+    -- character's getEmitter() actually returns, and Kahlua resolves against the
+    -- concrete class - so calling it threw. The loop is declared on the sound
+    -- itself in SZedPlus_Sounds.txt instead, which is where it belongs: whether
+    -- a track repeats is a property of the track, not of the call site.
+    --
+    -- Same trap as setHearing and forceModelScript: a method that exists
+    -- somewhere in the hierarchy is not a method you can call.
     local handle = nil
-    pcall(function() handle = lead:getEmitter():playSoundLooped(LEAD_SOUND) end)
+    pcall(function() handle = lead:getEmitter():playSound(LEAD_SOUND) end)
     if handle == nil then
         SZedPlus.logError("thriller: '%s' would not play - is the sound script loaded?",
             LEAD_SOUND)
