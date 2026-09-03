@@ -15,6 +15,7 @@ Design Bible — special enemy system, evolution tree and behaviours.
 
 ## Contents
 
+- [Lore](LORE.md)
 - [Spawn mechanics](#spawn-mechanics)
 - [Evolution tree](#evolution-tree)
 - [T1–T2 · Reinforced Zombie](#t1t2--reinforced-zombie)
@@ -425,9 +426,16 @@ By contributing you agree to the terms in [LICENSE](LICENSE) §5.
 | | |
 |---|---|
 | Simplified Chinese (`CN`) | **zyyxxxxx** |
+| Lore — origin, timeline, eleven chapters, one file per tier | **zyyxxxxx** |
 
-Contributed unprompted and done properly — consistent terminology, correct full-width punctuation, and idiom where
-the English is idiomatic rather than dictionary matches. Thank you.
+The translation was contributed unprompted and done properly — consistent terminology, correct full-width
+punctuation, and idiom where the English is idiomatic rather than dictionary matches.
+
+Then they wrote the mod a **whole backstory**, in three languages, without being asked: where the Knox Virus came
+from, what it wants (nothing), and why every tier above the last exists because humanity put it there. It is theirs,
+not mine. Summarised in [LORE.md](LORE.md).
+
+Thank you, twice.
 
 Translations are welcome. English is the reference; see [Contributing](#contributing) above and the layout in
 [CLAUDE.md](CLAUDE.md). Anyone who sends one gets a line here and on the Workshop page.
@@ -475,3 +483,4 @@ If you enjoy ZED+, you can support its development on Ko-fi:
 | [zedplus-design-bible.md](zedplus-design-bible.md) | Condensed version plus technical notes (mod structure, persistence, modData) |
 | [pz-zedplus-design.html](pz-zedplus-design.html) | Styled HTML version (source of this README) |
 | [CLAUDE.md](CLAUDE.md) | Implementation reference: environment, Build 42 layout, architecture |
+| [LORE.md](LORE.md) | The setting, spoiler-light — the Knox Virus and why each tier exists |
