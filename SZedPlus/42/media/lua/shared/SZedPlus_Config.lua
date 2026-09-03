@@ -28,7 +28,7 @@ local DEFAULTS = {
     DayTier3 = 7,
     DayTier5 = 21,
     DayTier6 = 30,
-    T4SurvivalDays = 4,
+    TierRampDays = 30,
 
     Debug = false,
     AcidOverlay = false,
@@ -140,6 +140,53 @@ function SZedPlus.Config.getStageRangeForDay(day)
         return 1, 2
     end
     return nil, nil
+end
+
+--- The day each stage becomes possible. T2 shares T1's day and T4 shares T3's,
+--- which is why there are three options rather than five.
+local function unlockDay(stage)
+    local get = SZedPlus.Config.get
+    if stage <= 2 then return get("DayTier1") end
+    if stage <= 4 then return get("DayTier3") end
+    return get("DayTier5")
+end
+
+--- How likely each stage is on this day, as { [stage] = weight }, or nil if no
+--- Zed+ can appear at all yet.
+---
+--- Each unlocked stage ramps from STAGE_WEIGHT_START to its own maximum over
+--- TierRampDays, counted from the day that stage unlocked. Because the maximums
+--- climb with the stage, the mix walks up the ladder as the days pass instead
+--- of sitting still - see the note on STAGE_WEIGHT_MAX for what that looks like.
+---
+--- Nothing here can starve the lower tiers: their weights are constant once
+--- ramped, so they keep a real share of the population forever. They simply
+--- stop being most of it.
+function SZedPlus.Config.getStageWeightsForDay(day)
+    local minStage, maxStage = SZedPlus.Config.getStageRangeForDay(day)
+    if not minStage then return nil end
+
+    local ramp = SZedPlus.Config.get("TierRampDays")
+    local start = SZedPlus.Tiers.STAGE_WEIGHT_START
+    local weights = {}
+
+    for stage = minStage, maxStage do
+        local maximum = SZedPlus.Tiers.STAGE_WEIGHT_MAX[stage] or start
+        local progress = 1.0
+
+        -- A ramp of 0 means "no ramp at all": every unlocked stage is
+        -- immediately at its maximum. Guarded because it is a player-facing
+        -- option and dividing by it is the obvious way to get a nan.
+        if ramp and ramp > 0 then
+            progress = (day - unlockDay(stage)) / ramp
+            if progress < 0 then progress = 0 end
+            if progress > 1 then progress = 1 end
+        end
+
+        weights[stage] = start + (maximum - start) * progress
+    end
+
+    return weights
 end
 
 --- Paths currently enabled, as a fresh array. Empty if the player disabled

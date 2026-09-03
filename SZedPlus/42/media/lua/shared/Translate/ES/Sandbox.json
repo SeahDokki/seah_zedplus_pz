@@ -14,8 +14,6 @@
     "Sandbox_SZedPlus_DayTier5_tooltip": "Día mínimo para que un T4 pueda evolucionar a su forma final. Además debe haber sobrevivido el plazo indicado abajo.",
     "Sandbox_SZedPlus_DayTier6": "Día de aparición de los T6",
     "Sandbox_SZedPlus_DayTier6_tooltip": "Día mínimo para que un T4 pueda convertirse en Calamidad. También deben cumplirse las condiciones de la zona.",
-    "Sandbox_SZedPlus_T4SurvivalDays": "Días de supervivencia T4 antes del T5",
-    "Sandbox_SZedPlus_T4SurvivalDays_tooltip": "Cuánto debe sobrevivir un T4 antes de pasar a una forma T5, una vez alcanzado el día T5.",
     "Sandbox_SZedPlus_Debug": "Registro de depuración",
     "Sandbox_SZedPlus_Debug_tooltip": "Muestra en la consola las decisiones de aparición de los Zed+. Muy verboso, solo para pruebas.",
     "Sandbox_SZedPlus_AcidSimpleZone": "Accesibilidad: simplificar las zonas de ácido",
@@ -65,5 +63,7 @@
     "Sandbox_SZedPlus_WeightSpitter": "Peso Escupidor (Distancia)",
     "Sandbox_SZedPlus_WeightSpitter_tooltip": "Con qué frecuencia se elige esta forma en lugar de Explorador. Es una proporción, no un porcentaje: 50 y 50 equivale a 100 y 100. A 0 nunca aparece.",
     "Sandbox_SZedPlus_WeightScout": "Peso Explorador (Distancia)",
-    "Sandbox_SZedPlus_WeightScout_tooltip": "Con qué frecuencia se elige esta forma en lugar de Escupidor. Es una proporción, no un porcentaje: 50 y 50 equivale a 100 y 100. A 0 nunca aparece."
+    "Sandbox_SZedPlus_WeightScout_tooltip": "Con qué frecuencia se elige esta forma en lugar de Escupidor. Es una proporción, no un porcentaje: 50 y 50 equivale a 100 y 100. A 0 nunca aparece.",
+    "Sandbox_SZedPlus_TierRampDays": "Progresión de niveles (días)",
+    "Sandbox_SZedPlus_TierRampDays_tooltip": "Tiempo que tarda un nivel en pasar de raro a común tras el día en que se desbloquea. Los niveles altos acaban siendo más probables que los bajos, así que los zombis que encuentras suben la escala según sobrevives, sin que los niveles bajos desaparezcan nunca. A 0 no hay progresión: todo es inmediato."
 }

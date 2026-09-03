@@ -8,6 +8,46 @@
 SZedPlus = SZedPlus or {}
 SZedPlus.Tiers = {}
 
+--- How likely each stage is once it has been unlocked long enough.
+---
+--- The roll used to be uniform across everything the day allowed, which had two
+--- problems. On the day T5 unlocked, a Zed+ was as likely to be a T1 as a T5 -
+--- the rarest thing in the mod arriving at 20% - and nothing ever changed after
+--- that: day 25 and day 250 produced the same mix.
+---
+--- So each stage ramps from START_WEIGHT to its maximum over TierRampDays,
+--- counted from its own unlock day, and the maximums climb with the stage. The
+--- effect is a population that walks up the ladder: a T5 is a rumour when it
+--- first becomes possible, common much later, and the lower tiers never
+--- disappear - they just stop being most of what you meet.
+---
+--- Worked example with the defaults (unlocks day 0/7/21, ramp 30), computed
+--- from the numbers below rather than estimated:
+---
+---   day  7   T1 28%  T2 28%  T3 22%  T4 22%  T5  -
+---   day 21   T1 17%  T2 17%  T3 24%  T4 33%  T5 10%      (T5 becomes possible)
+---   day 30   T1 12%  T2 12%  T3 20%  T4 29%  T5 26%
+---   day 45   T1  8%  T2  8%  T3 17%  T4 25%  T5 41%
+---   day 60+  T1  8%  T2  8%  T3 15%  T4 23%  T5 46%      (fully ramped)
+---
+--- It plateaus at day 60 and stays there, on purpose. A T5 ends up the single
+--- likeliest thing to meet without ever being most of what you meet, and an
+--- ordinary reinforced zombie is still one Zed+ in seven on day 500.
+---
+--- These are relative weights, not percentages: what matters is the ratio
+--- between them, so the whole curve can be retuned by moving one number.
+SZedPlus.Tiers.STAGE_WEIGHT_MAX = {
+    [1] = 10,
+    [2] = 10,
+    [3] = 20,
+    [4] = 30,
+    [5] = 60,
+}
+
+--- What a stage is worth on the very day it unlocks, before any ramp.
+--- Not zero: "the T5 day" should mean T5s exist, just rarely.
+SZedPlus.Tiers.STAGE_WEIGHT_START = 5
+
 --- Speed families, as the engine numbers them in IsoZombie.speedType.
 --- Confirmed in game: a zombie on "sprint1" reported 1, one on a bare "1"
 --- reported 2. Note the ordering is inverted - a LOWER number is FASTER.

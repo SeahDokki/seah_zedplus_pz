@@ -14,8 +14,6 @@
     "Sandbox_SZedPlus_DayTier5_tooltip": "Earliest day a T4 may evolve into a final form. It must also have survived the delay set below.",
     "Sandbox_SZedPlus_DayTier6": "Day T6 can appear",
     "Sandbox_SZedPlus_DayTier6_tooltip": "Earliest day a T4 may become a Calamity. The zone conditions must be met as well.",
-    "Sandbox_SZedPlus_T4SurvivalDays": "T4 survival days before T5",
-    "Sandbox_SZedPlus_T4SurvivalDays_tooltip": "How long a T4 must survive before falling back to a T5 form, once the T5 day has been reached.",
     "Sandbox_SZedPlus_Debug": "Debug logging",
     "Sandbox_SZedPlus_Debug_tooltip": "Print Zed+ spawn decisions to the console. Noisy, for testing only.",
     "Sandbox_SZedPlus_AcidSimpleZone": "Accessibility: simplify acid zones",
@@ -65,5 +63,7 @@
     "Sandbox_SZedPlus_WeightSpitter": "Spitter weight (Ranged)",
     "Sandbox_SZedPlus_WeightSpitter_tooltip": "How often this form is chosen instead of the Scout. Relative to it, not a percentage - two forms at 50 and 50 is the same as 100 and 100. Set to 0 and it never spawns.",
     "Sandbox_SZedPlus_WeightScout": "Scout weight (Ranged)",
-    "Sandbox_SZedPlus_WeightScout_tooltip": "How often this form is chosen instead of the Spitter. Relative to it, not a percentage - two forms at 50 and 50 is the same as 100 and 100. Set to 0 and it never spawns."
+    "Sandbox_SZedPlus_WeightScout_tooltip": "How often this form is chosen instead of the Spitter. Relative to it, not a percentage - two forms at 50 and 50 is the same as 100 and 100. Set to 0 and it never spawns.",
+    "Sandbox_SZedPlus_TierRampDays": "Tier ramp (days)",
+    "Sandbox_SZedPlus_TierRampDays_tooltip": "How long a tier takes to go from rare to common after the day it unlocks. Higher tiers end up more likely than lower ones, so the zombies you meet climb the ladder as you survive - but the lower tiers never disappear. Set to 0 to skip the ramp entirely."
 }

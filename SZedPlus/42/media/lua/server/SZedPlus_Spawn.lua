@@ -78,11 +78,37 @@ end
 
 -- ------------------------------------------------------------------ roll --
 
---- Roll a stage inside the band allowed by the current day.
+--- Roll a stage for the current day, weighted so the mix climbs over time.
+---
+--- Not a uniform pick across the allowed band any more: that made a T5 as
+--- likely as a T1 on the day T5 unlocked, and froze the mix from then on. The
+--- weights come from Config.getStageWeightsForDay, which is where the shape of
+--- the curve is explained.
 local function rollStage(day)
-    local minStage, maxStage = SZedPlus.Config.getStageRangeForDay(day)
-    if not minStage then return nil end
-    return minStage + ZombRand(maxStage - minStage + 1)
+    local weights = SZedPlus.Config.getStageWeightsForDay(day)
+    if not weights then return nil end
+
+    local total = 0
+    for _, weight in pairs(weights) do total = total + weight end
+    if total <= 0 then return nil end
+
+    -- ZombRand is integer-only, so roll in hundredths to keep the fractional
+    -- part of a half-ramped weight meaningful.
+    local roll = ZombRand(math.floor(total * 100) + 1) / 100
+
+    local running = 0
+    for stage = 1, 5 do
+        local weight = weights[stage]
+        if weight then
+            running = running + weight
+            if roll <= running then return stage end
+        end
+    end
+
+    -- Only reachable through floating-point drift at the very top of the
+    -- range; fall back to the highest stage the day allows.
+    local _, maxStage = SZedPlus.Config.getStageRangeForDay(day)
+    return maxStage
 end
 
 --- Build a spec for a natural spawn, or nil if no Zed+ can appear today.

@@ -69,15 +69,16 @@ option SZedPlus.DayTier6
     translation = SZedPlus_DayTier6,
 }
 
-option SZedPlus.T4SurvivalDays
+
+option SZedPlus.TierRampDays
 {
     type = integer,
     min = 0,
-    max = 60,
-    default = 4,
+    max = 365,
+    default = 30,
 
     page = SZedPlusGeneral,
-    translation = SZedPlus_T4SurvivalDays,
+    translation = SZedPlus_TierRampDays,
 }
 
 option SZedPlus.Debug

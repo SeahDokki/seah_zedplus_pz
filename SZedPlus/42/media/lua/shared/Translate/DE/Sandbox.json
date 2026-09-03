@@ -14,8 +14,6 @@
     "Sandbox_SZedPlus_DayTier5_tooltip": "Frühester Tag, an dem sich ein T4 zu einer Endform entwickeln kann. Zusätzlich muss die unten eingestellte Frist verstrichen sein.",
     "Sandbox_SZedPlus_DayTier6": "Tag, ab dem T6 erscheinen",
     "Sandbox_SZedPlus_DayTier6_tooltip": "Frühester Tag, an dem ein T4 zu einer Katastrophe werden kann. Die Zonenbedingungen müssen ebenfalls erfüllt sein.",
-    "Sandbox_SZedPlus_T4SurvivalDays": "Überlebenstage als T4 vor T5",
-    "Sandbox_SZedPlus_T4SurvivalDays_tooltip": "Wie lange ein T4 überleben muss, bevor er in eine T5-Form wechselt, sobald der T5-Tag erreicht ist.",
     "Sandbox_SZedPlus_Debug": "Debug-Protokollierung",
     "Sandbox_SZedPlus_Debug_tooltip": "Gibt die Spawn-Entscheidungen der Zed+ in der Konsole aus. Sehr gesprächig, nur zum Testen.",
     "Sandbox_SZedPlus_AcidSimpleZone": "Barrierefreiheit: Säurezonen vereinfachen",
@@ -65,5 +63,7 @@
     "Sandbox_SZedPlus_WeightSpitter": "Gewicht Spucker (Fernkampf)",
     "Sandbox_SZedPlus_WeightSpitter_tooltip": "Wie oft diese Form anstelle von Späher gewählt wird. Ein Verhältnis, kein Prozentwert: 50 und 50 entspricht 100 und 100. Bei 0 erscheint sie nie.",
     "Sandbox_SZedPlus_WeightScout": "Gewicht Späher (Fernkampf)",
-    "Sandbox_SZedPlus_WeightScout_tooltip": "Wie oft diese Form anstelle von Spucker gewählt wird. Ein Verhältnis, kein Prozentwert: 50 und 50 entspricht 100 und 100. Bei 0 erscheint sie nie."
+    "Sandbox_SZedPlus_WeightScout_tooltip": "Wie oft diese Form anstelle von Spucker gewählt wird. Ein Verhältnis, kein Prozentwert: 50 und 50 entspricht 100 und 100. Bei 0 erscheint sie nie.",
+    "Sandbox_SZedPlus_TierRampDays": "Stufenanstieg (Tage)",
+    "Sandbox_SZedPlus_TierRampDays_tooltip": "Wie lange eine Stufe braucht, um nach ihrer Freischaltung von selten zu häufig zu werden. Höhere Stufen werden am Ende wahrscheinlicher als niedrige, die angetroffenen Zombies steigen also mit Ihrer Überlebensdauer auf - die niedrigen Stufen verschwinden aber nie. Bei 0 entfällt der Anstieg vollständig."
 }

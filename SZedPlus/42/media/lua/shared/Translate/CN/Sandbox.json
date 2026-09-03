@@ -14,8 +14,6 @@
     "Sandbox_SZedPlus_DayTier5_tooltip": "T4 最早可进化为最终形态的日期。同时它还必须熬过下方设置的存活天数。",
     "Sandbox_SZedPlus_DayTier6": "T6 可出现的天数",
     "Sandbox_SZedPlus_DayTier6_tooltip": "T4 最早可变为灾厄的日期。同时必须满足区域条件。",
-    "Sandbox_SZedPlus_T4SurvivalDays": "T4 进化为 T5 所需存活天数",
-    "Sandbox_SZedPlus_T4SurvivalDays_tooltip": "达到 T5 开放日后，T4 必须存活多久才能进化为 T5 形态。",
     "Sandbox_SZedPlus_Debug": "调试日志",
     "Sandbox_SZedPlus_Debug_tooltip": "将 Zed+ 的生成决策打印到控制台。信息量很大，仅供测试。",
     "Sandbox_SZedPlus_AcidSimpleZone": "无障碍：简化酸液区域",
@@ -65,5 +63,7 @@
     "Sandbox_SZedPlus_WeightSpitter": "喷吐者权重（远程）",
     "Sandbox_SZedPlus_WeightSpitter_tooltip": "这个形态相对于侦察兵被选中的频率。这是比例而非百分比：50 和 50 与 100 和 100 效果相同。设为 0 则永不出现。",
     "Sandbox_SZedPlus_WeightScout": "侦察兵权重（远程）",
-    "Sandbox_SZedPlus_WeightScout_tooltip": "这个形态相对于喷吐者被选中的频率。这是比例而非百分比：50 和 50 与 100 和 100 效果相同。设为 0 则永不出现。"
+    "Sandbox_SZedPlus_WeightScout_tooltip": "这个形态相对于喷吐者被选中的频率。这是比例而非百分比：50 和 50 与 100 和 100 效果相同。设为 0 则永不出现。",
+    "Sandbox_SZedPlus_TierRampDays": "等级提升周期（天）",
+    "Sandbox_SZedPlus_TierRampDays_tooltip": "某个等级从稀有变为常见所需的天数，自解锁当天起算。高等级最终会比低等级更常见，因此随着生存时间增长，遇到的丧尸也会逐级攀升，但低等级永远不会消失。设为 0 则取消过渡，立即生效。"
 }
