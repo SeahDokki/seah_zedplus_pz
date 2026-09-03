@@ -34,6 +34,20 @@ local DANCE_EVERY_TICKS = 20
 local PLACE_MIN, PLACE_MAX = 7, 12
 local RING_RADIUS = 2
 
+--- How far from a vehicle the ring is placed. Much closer than the player
+--- case, and that is the whole point of hanging this off road events: a ring
+--- three tiles from an abandoned car reads as something that happened there,
+--- while the same ring twelve tiles away is just zombies in a field.
+local STORY_MIN, STORY_MAX = 3, 6
+
+--- Minimum distance between two troupes.
+---
+--- Not squeamishness about clustering: a chunk load spawns a lot of vehicles at
+--- once, and rolling against each of them independently can put two rings on
+--- top of each other however long the odds are. One dance is an event, two
+--- overlapping is a bug that looks like a bug.
+local TROUPE_SPACING = 25
+
 --- How many zombies stand in the ring, before the one in the middle.
 local RING_MIN, RING_MAX = 5, 8
 
@@ -134,28 +148,41 @@ local function isRoad(square)
     return string.find(name, "street", 1, true) ~= nil
 end
 
---- A free road square between PLACE_MIN and PLACE_MAX tiles from the player.
+--- A free road square in a ring around a point.
 --- Returns nil rather than settling for somewhere unsuitable: a dance in a
 --- hedge is worse than no dance.
-local function findStage(player)
+local function findStageNear(ox, oy, oz, minDist, maxDist, requireRoad)
     local cell = getCell()
     if cell == nil then return nil end
 
-    local px, py, pz = player:getX(), player:getY(), player:getZ()
-
     for _ = 1, 20 do
         local angle = ZombRand(360) * math.pi / 180
-        local distance = PLACE_MIN + ZombRand(PLACE_MAX - PLACE_MIN + 1)
-        local x = math.floor(px + math.cos(angle) * distance)
-        local y = math.floor(py + math.sin(angle) * distance)
+        local distance = minDist + ZombRand(maxDist - minDist + 1)
+        local x = math.floor(ox + math.cos(angle) * distance)
+        local y = math.floor(oy + math.sin(angle) * distance)
 
-        local square = cell:getGridSquare(x, y, pz)
-        if square and square:isFree(false) and isRoad(square) then
+        local square = cell:getGridSquare(x, y, oz)
+        if square and square:isFree(false)
+            and (not requireRoad or isRoad(square)) then
             return square
         end
     end
 
     return nil
+end
+
+--- Is a troupe already dancing near here?
+local function troupeNear(x, y)
+    for index = 1, dancerCount do
+        local zombie = dancers[index].zombie
+        if zombie ~= nil then
+            local dx, dy = zombie:getX() - x, zombie:getY() - y
+            if dx * dx + dy * dy <= TROUPE_SPACING * TROUPE_SPACING then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 --- Spawn one zombie on a square, optionally in a named outfit.
@@ -275,7 +302,8 @@ end
 function SZedPlus.Thriller.spawnNear(player)
     if player == nil then return false end
 
-    local square = findStage(player)
+    local square = findStageNear(player:getX(), player:getY(), player:getZ(),
+        PLACE_MIN, PLACE_MAX, true)
     if square ~= nil then
         return SZedPlus.Thriller.stage(square)
     end
@@ -299,6 +327,51 @@ function SZedPlus.Thriller.spawnNear(player)
     return false
 end
 
+--- Roll for the event at a place, and stage it if it comes up.
+---
+--- Shared by both triggers so the rarity means one thing. `why` only reaches
+--- the log.
+local function rollAt(square, minDist, maxDist, why)
+    if square == nil then return false end
+    if not SZedPlus.Config.get("ThrillerEnabled") then return false end
+    if not isRoad(square) then return false end
+
+    local rarity = SZedPlus.Config.get("ThrillerRarity")
+    if rarity == nil or rarity < 1 then return false end
+    if ZombRand(rarity) ~= 0 then return false end
+
+    if troupeNear(square:getX(), square:getY()) then return false end
+
+    local stage = findStageNear(square:getX(), square:getY(), square:getZ(),
+        minDist, maxDist, true)
+    if stage == nil then return false end
+
+    SZedPlus.log("thriller: rolled from %s", tostring(why))
+    return SZedPlus.Thriller.stage(stage)
+end
+
+--- Hang the event off the road stories the game already places.
+---
+--- Asked for, and a better trigger than walking alone. A road story - a crash,
+--- a blockade, an abandoned car - puts vehicles on a road, so OnSpawnVehicleEnd
+--- fires exactly where the game has already decided something happened. A ring
+--- of zombies a few tiles from a stopped car reads as part of that scene rather
+--- than as a mod dropping zombies in a field.
+---
+--- The same ThrillerRarity applies here as to walking, deliberately: vehicles
+--- spawn far less often than road tiles are walked, so this is a second and
+--- rarer route rather than a rate to rebalance, and the option keeps meaning
+--- one thing.
+---
+--- Uses the End event, not Start: at Start the vehicle is not created yet, as
+--- vanilla's own ProfessionVehicles handler shows by returning on isCreated().
+local function onSpawnVehicleEnd(vehicle)
+    if vehicle == nil then return end
+    rollAt(vehicle:getSquare(), STORY_MIN, STORY_MAX, "a road event")
+end
+
+Events.OnSpawnVehicleEnd.Add(onSpawnVehicleEnd)
+
 --- Roll for the event as this player enters a new square.
 local function considerPlayer(player)
     if player == nil or player:isDead() then return end
@@ -312,16 +385,7 @@ local function considerPlayer(player)
     if lastSquare[key] == id then return end
     lastSquare[key] = id
 
-    if not isRoad(square) then return end
-
-    local rarity = SZedPlus.Config.get("ThrillerRarity")
-    if rarity == nil or rarity < 1 then return end
-    if ZombRand(rarity) ~= 0 then return end
-
-    local stage = findStage(player)
-    if stage == nil then return end
-
-    SZedPlus.Thriller.stage(stage)
+    rollAt(square, PLACE_MIN, PLACE_MAX, "a road walked")
 end
 
 -- ----------------------------------------------------------------- dance --

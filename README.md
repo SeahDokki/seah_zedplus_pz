@@ -387,7 +387,7 @@ by *Armageddon Riders* and *Michael Jackson's Thriller*.
 
 | | |
 |---|---|
-| **Trigger** | Ultra-rare chance when crossing a road segment. Independent of the Zed+ system. |
+| **Trigger** | Ultra-rare chance, rolled two ways: on each road tile the player walks onto, and on each vehicle the game spawns on a road — so it also turns up alongside the crashes and blockades the map already places. Independent of the Zed+ system. |
 | **Composition** | 5 to 8 ordinary zombies in a circle · 1 central zombie in an orange outfit (dedicated outfit) |
 | **Sound** | Modified "Thriller" audio loop played as a world sound (low volume, ~15-tile radius). Stops if the zombies die. |
 | **Behaviour** | Zombies slowly rotating in place (cyclic `setFacing()`). They aggro normally if the player approaches — the dance stops. |
