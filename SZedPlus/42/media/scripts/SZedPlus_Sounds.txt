@@ -32,11 +32,16 @@ module SZedPlus
         {
             file = media/sound/mj_thriller_egg.ogg,
 
-            /* Audible from about fifteen tiles, which is roughly the point at
-               which the ring becomes visible. Below two tiles it stops getting
-               louder, so standing in the middle is not painful. */
+            /* Fifty tiles, not the fifteen this started at.
+               Fifteen was reasoned from "roughly where the ring becomes
+               visible", which sounded right and was wrong in play: the ring is
+               placed seven to twelve tiles away and the dance breaks up at six,
+               so the music only existed inside the window where the player was
+               already on top of it. The point of the sound is to be heard from
+               somewhere else and walked towards. Below two tiles it stops
+               getting louder, so standing in the middle is not painful. */
             distanceMin = 2,
-            distanceMax = 15,
+            distanceMax = 50,
             volume = 0.5,
         }
     }

@@ -37,6 +37,15 @@ local RING_RADIUS = 2
 --- How many zombies stand in the ring, before the one in the middle.
 local RING_MIN, RING_MAX = 5, 8
 
+--- How close a player has to get before the dance breaks up.
+---
+--- Proximity rather than aggro, and that is not a shortcut. A dancer is held
+--- with its target cleared every tick, so it can never acquire one - the same
+--- position the dormant Mimic is in, and the same reason it wakes on distance.
+--- Waiting for aggro on a zombie that is forbidden from having any would leave
+--- the troupe frozen forever, which is the failure mode this mod keeps finding.
+local WAKE_DIST = 6
+
 --- The centre dancer's outfit: Boilersuit_Prisoner, which is the orange one.
 --- Inmate is in the male outfit list only, so the gender has to match or the
 --- lookup silently dresses nobody - see the note in SZedPlus_Appearance.
@@ -267,14 +276,95 @@ end
 
 -- ----------------------------------------------------------------- dance --
 
---- Advance the dance, and drop anyone who has stopped dancing.
+--- Nearest live player to this zombie, and how far in tiles. nil if there is
+--- nobody to measure against.
+local function nearestPlayer(zombie)
+    local players = livePlayers()
+    if players == nil then return nil, nil end
+
+    local best, bestDist = nil, nil
+    for index = 0, players:size() - 1 do
+        local player = players:get(index)
+        if player ~= nil and not player:isDead() then
+            local dx = player:getX() - zombie:getX()
+            local dy = player:getY() - zombie:getY()
+            local squared = dx * dx + dy * dy
+            if bestDist == nil or squared < bestDist then
+                best, bestDist = player, squared
+            end
+        end
+    end
+
+    if best == nil then return nil, nil end
+    return best, math.sqrt(bestDist)
+end
+
+--- Let a dancer go: unlock everything the freeze locked, and never take it back.
 ---
---- A dancer leaves the list the moment it acquires a target, which is what
---- "they aggro normally and the dance stops" means in practice: nothing here
---- holds the zombie, so once it is no longer being turned it is an ordinary
---- zombie coming for you. There is no way back into the dance, on purpose.
-local function danceStep()
+--- Releasing matters more than freezing. A zombie left with a locked state
+--- machine is inert permanently, so every exit from the routine has to come
+--- through here - the Stalker learned that the hard way and its freeze has the
+--- same rule.
+local function release(zombie)
+    if zombie == nil then return end
+    pcall(function()
+        zombie:setStateMachineLocked(false)
+        zombie:setCanWalk(true)
+    end)
+end
+
+--- Hold a dancer still. Called every tick, because six was already too coarse.
+---
+--- Two cadences on purpose, copied from how the Stalker holds:
+---   every tick  - setCanWalk(false) and a cleared target, which is what the AI
+---                 overrides fastest;
+---   every step  - idle plus a locked state machine, which is the part the AI
+---                 cannot walk out of and does not need re-applying as often.
+---
+--- setCanWalk(false) alone is NOT a freeze, and this is the third form to need
+--- saying so: the AI keeps its own state and walks anyway. That is what had
+--- dancers drifting out of the ring, the lead included.
+local function hold(zombie, relock)
+    pcall(function()
+        zombie:setTarget(nil)
+        zombie:clearAggroList()
+        zombie:setCanWalk(false)
+        if relock then
+            zombie:changeState(ZombieIdleState.instance())
+            zombie:setStateMachineLocked(true)
+        end
+    end)
+end
+
+--- Hold the troupe, turn it, and break it up when someone gets close.
+---
+--- The whole ring goes at once rather than one dancer at a time. They are all
+--- looking at the same thing, so them all stopping together is both simpler and
+--- the better moment: the music cuts, and eight zombies turn round.
+local function danceStep(turn)
     if dancerCount == 0 then return end
+
+    -- Anyone close enough ends it for everybody.
+    local broken = false
+    for index = 1, dancerCount do
+        local zombie = dancers[index].zombie
+        if zombie ~= nil and not zombie:isDead() and zombie:getSquare() ~= nil then
+            local _, distance = nearestPlayer(zombie)
+            if distance ~= nil and distance <= WAKE_DIST then
+                broken = true
+                break
+            end
+
+            -- Shot from out there, or otherwise onto someone despite the
+            -- clearing: that counts too.
+            local hasTarget = false
+            pcall(function() hasTarget = zombie:getTarget() ~= nil end)
+            if hasTarget then
+                broken = true
+                break
+            end
+        end
+    end
 
     local remaining = {}
     local remainingCount = 0
@@ -282,31 +372,33 @@ local function danceStep()
     for index = 1, dancerCount do
         local entry = dancers[index]
         local zombie = entry.zombie
-        local keep = false
+        local alive = zombie ~= nil and not zombie:isDead()
+            and zombie:getSquare() ~= nil
 
-        if zombie ~= nil and not zombie:isDead() and zombie:getSquare() ~= nil then
-            local hasTarget = false
-            pcall(function() hasTarget = zombie:getTarget() ~= nil end)
+        if alive and not broken then
+            hold(zombie, turn)
 
-            if not hasTarget then
+            if turn then
                 -- The lead turns the other way. Small thing, but it reads as a
                 -- performance rather than eight zombies with the same twitch.
                 entry.step = entry.step + (entry.lead and -1 or 1)
                 face(zombie, entry.step)
-                keep = true
             end
-        end
 
-        if keep then
             remainingCount = remainingCount + 1
             remaining[remainingCount] = entry
-        elseif entry.sound ~= nil then
-            -- The lead has stopped dancing - noticed the player, or died. Cut
-            -- the music with him rather than leaving a loop playing over a
-            -- zombie that is now walking at you.
-            pcall(function() zombie:getEmitter():stopSound(entry.sound) end)
-            entry.sound = nil
+        else
+            -- Off the list for good: released, and the music with it.
+            release(zombie)
+            if entry.sound ~= nil then
+                pcall(function() zombie:getEmitter():stopSound(entry.sound) end)
+                entry.sound = nil
+            end
         end
+    end
+
+    if broken and dancerCount > 0 then
+        SZedPlus.log("thriller: the dance broke up")
     end
 
     dancers = remaining
@@ -318,9 +410,9 @@ end
 local function onTick()
     ticks = ticks + 1
 
-    if ticks % DANCE_EVERY_TICKS == 0 then
-        danceStep()
-    end
+    -- Every tick, because a hold re-asserted any less often is not a hold.
+    -- `turn` is what happens on the slower beat.
+    danceStep(ticks % DANCE_EVERY_TICKS == 0)
 
     if ticks % CHECK_EVERY_TICKS ~= 0 then return end
 
