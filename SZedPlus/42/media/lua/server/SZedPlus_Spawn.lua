@@ -42,14 +42,20 @@ function SZedPlus.Spawn.applySpec(zombie, spec)
     data[Keys.stage] = spec.stage
     data[Keys.path] = spec.path
     data[Keys.form] = spec.form
+    -- `formBottle` is durable Boomer identity state. Assigning nil here is
+    -- intentional for a fresh Boomer: Appearance.apply will roll it once.
+    data[Keys.formBottle] = spec.formBottle
     data[Keys.calamityKind] = spec.calamity
+    if spec.persistId ~= nil then
+        data[Keys.persistId] = spec.persistId
+    end
 
     -- Recorded but not currently read: T5 is rolled at spawn rather than
     -- promoted, so there is no survival delay to measure. Kept because it
     -- costs a single number and it is the field a future promotion path would
     -- want - see getStageRangeForDay for why promotion was not built.
     if spec.stage == 4 then
-        data[Keys.t4SpawnDay] = day
+        data[Keys.t4SpawnDay] = spec.t4SpawnDay or day
     end
 
     -- Appearance is claimed immediately: the engine dresses the zombie on a
@@ -62,8 +68,9 @@ function SZedPlus.Spawn.applySpec(zombie, spec)
     SZedPlus.Senses.track(zombie)
     SZedPlus.FormBehaviour.track(zombie)
 
-    -- A T5 is remembered in world ModData, because its own modData does not
-    -- survive the population manager - see SZedPlus_Persistence.
+    -- Every T1-T5 Zed+ is remembered in world ModData. The population manager
+    -- can discard the IsoZombie modData outside the loaded area, so identity
+    -- must survive independently of the current Java object.
     if SZedPlus.Persistence then SZedPlus.Persistence.remember(zombie) end
 
     SZedPlus.log("applied %s at day %d", SZedPlus.describe(zombie), day)
@@ -197,9 +204,10 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
         return
     end
 
-    -- Already classified. This fires again whenever a chunk brings its zombies
-    -- back, which is exactly when the modifiers need re-applying: the engine
-    -- rebuilds the zombie, modData survives, the stats do not necessarily.
+    -- Already classified. This is the ordinary chunk restore path where modData
+    -- survived, even though runtime stats may need re-applying. Population-manager
+    -- virtualisation is the other path: if modData was discarded there, the
+    -- persistence reclaim below sees an uninitialized zombie and restores it.
     if SZedPlus.isInitialized(zombie) then
         if SZedPlus.isZedPlus(zombie) then
             -- Re-dress if the clothes are gone.
@@ -228,22 +236,38 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
         return
     end
 
-    -- Before rolling: this zombie may be standing where a T5 was left. The
-    -- object is new - the old one was discarded with its modData - but the form
-    -- belongs to the place, so it is handed over rather than lost.
+    -- Before rolling: this may be a population-manager rebuild of a Zed+ whose
+    -- IsoZombie modData was discarded. Reclaim the persisted identity first; a
+    -- rebuilt special must never be subjected to a fresh rarity/tier roll.
     if SZedPlus.Persistence then
-        local claim, key = SZedPlus.Persistence.findClaim(zombie)
+        local claim, key, reason = SZedPlus.Persistence.findClaim(zombie)
         if claim then
-            SZedPlus.Persistence.consume(key)
-            SZedPlus.Spawn.applySpec(zombie, {
-                stage = 5, path = claim.path, form = claim.form,
-            })
-            SZedPlus.log("a T5 %s reclaimed its form here", tostring(claim.form))
-            return
+            local attached = SZedPlus.Persistence.attachClaim(zombie, key)
+            if attached then
+                SZedPlus.Spawn.applySpec(zombie, {
+                    stage = attached.stage,
+                    path = attached.path,
+                    form = attached.form,
+                    formBottle = attached.formBottle,
+                    t4SpawnDay = attached.t4SpawnDay,
+                    persistId = tonumber(key) or key,
+                })
+                SZedPlus.log("identity #%s restored as %s via %s match",
+                    tostring(key), SZedPlus.describe(zombie), tostring(reason))
+                return
+            end
         end
     end
 
-    if SZedPlus.rollOneIn(SZedPlus.Config.get("SpawnRate")) then
+    -- TEMP ENGINE_IDENTITY_PROBE2: diagnostic-only marker. This does not
+    -- consume RNG or alter classification; it records only that this zombie
+    -- reached the existing natural SpawnRate lottery. Remove for release.
+    local spawnRate = SZedPlus.Config.get("SpawnRate")
+    if SZedPlus.EngineIdentityProbe and SZedPlus.EngineIdentityProbe.noteNaturalRoll then
+        SZedPlus.EngineIdentityProbe.noteNaturalRoll(zombie, spawnRate)
+    end
+
+    if SZedPlus.rollOneIn(spawnRate) then
         local spec = rollSpec(SZedPlus.getCurrentDay())
         if spec then
             SZedPlus.Spawn.applySpec(zombie, spec)

@@ -77,9 +77,16 @@ carries ongoing evaluation logic; T1–T3 are set-and-forget stat tweaks.
 save and reload, because the chunk writes it — but **not** the player walking away. A zombie handed to the population
 manager is reduced to `ZombiePopulationManager$ZombieSaveData`, whose entire contents are `descriptorID, dir, state,
 x, y, z`; modData is not among them, so everything the mod wrote is discarded and what comes back is an ordinary
-zombie. `SZedPlus_Persistence` exists for that: a T5 is recorded by form and position in world ModData, and the first
-unclassified zombie to appear near the record claims it. Not the same object — that is impossible — but the form
-returns where it was left. Note the asymmetry it creates: after a *reload* modData is intact while the engine has
+zombie. `SZedPlus_Persistence` exists for that: it keeps an identity ledger in world ModData — one record per
+**T1-T5** Zed+, holding stage, path, form, durable form state (the Boomer's bottle), the T4 spawn day, the last known
+position and a set of fingerprints. When a rebuilt zombie appears, `findClaim` looks for its record *before* any
+spawn roll happens, so a reconstructed special can never be re-rolled into something else. Matching is layered:
+`getSharedDescriptorID()` first (indexed, 64-tile radius), then a 6-tile spatial fallback scored on persistent outfit
+id and sex, with a mismatched descriptor as a hard veto. `attachClaim` then binds the record to the new IsoZombie
+without consuming it, so the persistId survives the round trip. Not the same object — that is impossible — but the
+identity returns. **The descriptor's stability across virtualisation is an assumption, not a documented guarantee**;
+`SZedPlus_EngineIdentityProbe` exists to measure it, and the 64-tile radius is only as sound as that measurement.
+Note the asymmetry it creates: after a *reload* modData is intact while the engine has
 rebuilt the model from the descriptor, so flags like `outfitApplied` come back set describing clothes that no longer
 exist. Ask the zombie what it is wearing rather than trusting the flag. Cross-zombie state (the calamity registry,
 used for the "one Calamity per 150-tile radius" exclusion) cannot live there; it lives in
@@ -571,9 +578,13 @@ are captured once into modData, and every modifier is computed from those, never
 ## Current state
 
 Implemented: sandbox options, config with fallbacks, the Calamity registry, the spawn roll, T1-T4 health and speed
-modifiers, all seven T5 forms with their behaviours and outfits, per-form spawn weights, form persistence across
-chunk unloads, the acid system, the Bandits guard, and the debug tooling (right-click > Debug > Zed+: spawn any
-tier, GetStats panel, inspect, remove, redress nearby T5s).
+modifiers, all seven T5 forms with their behaviours and outfits, per-form spawn weights, T1-T5 identity persistence
+across chunk unloads and population-manager virtualisation, the acid system, the Bandits guard, and the debug tooling
+(right-click > Debug > Zed+: spawn any tier, GetStats panel, inspect, remove, redress nearby T5s).
+
+**Temporary, must not ship:** `SZedPlus_EngineIdentityProbe.lua`, `SZedPlus_EngineIdentityProbeMenu.lua` and the one
+`noteNaturalRoll` call in `SZedPlus_Spawn.lua` are diagnostic-only, added to measure whether
+`getSharedDescriptorID()` actually survives virtualisation. Delete all three before a release build.
 
 Not implemented: the Stealth short-aggro behaviour (no way to set hearing - needs a different mechanism), the Ranged
 putrefaction gas, the Volatile, every T6 Calamity, tier promotion (T4 to T5/T6), and the Thriller easter egg.

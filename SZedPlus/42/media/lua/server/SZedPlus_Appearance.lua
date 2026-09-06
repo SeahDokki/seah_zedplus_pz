@@ -224,8 +224,16 @@ function SZedPlus.Appearance.apply(zombie)
     -- Boomer with its bottle still attached explodes differently. Roll it here,
     -- fold the chosen variant into the outfit, and remember the answer.
     if outfit.bottleChance then
-        local hasBottle = ZombRand(100) < outfit.bottleChance
-        data[Keys.formBottle] = hasBottle
+        -- A persisted false is just as meaningful as true. Only nil means this
+        -- Boomer has never had its bottle variant decided and needs the 25% roll.
+        local hasBottle = data[Keys.formBottle]
+        if hasBottle == nil then
+            hasBottle = ZombRand(100) < outfit.bottleChance
+            data[Keys.formBottle] = hasBottle
+            if SZedPlus.Persistence and SZedPlus.Persistence.rememberFormBottle then
+                SZedPlus.Persistence.rememberFormBottle(zombie)
+            end
+        end
 
         local variant = hasBottle and outfit.withBottle or outfit.withoutBottle
         if variant then
