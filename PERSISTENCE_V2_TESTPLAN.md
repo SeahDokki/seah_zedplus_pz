@@ -178,6 +178,21 @@ twice.
 Ledger growth over ~20 minutes at `SpawnRate=2`: 384 → 599 records, descriptor coverage 35% → 42%. Fast, but that is
 the most hostile setting the option allows; test I still wants a normal-rate observation.
 
+## Release, 6 Sep 2026
+
+Probe removed — both files and the `noteNaturalRoll` call — before publishing. It was never used: the six P1-P6
+experiments needed a zone armed by hand, while the `PROBE2` lines added straight into `SZedPlus_Persistence` measured
+the same thing passively and produced all 599 samples during an ordinary drive. Those lines stay, gated on `Debug`.
+
+Shipped with tests A-D done and **E, F, G not run**. That is a deliberate call, not an oversight: the criterion is
+that a save must not be bricked, and the ledger only ever writes into the mod's own `ModData.getOrCreate("SZedPlus")`
+store — the worst it can do is forget things. Test I, ledger growth, is the one that still matters under that
+criterion, and default `SpawnRate=400` makes it roughly 200x slower than the session that produced 599 records in
+twenty minutes.
+
+Also shipped: the multiplayer acid fix, with no multiplayer test. It cannot be tested alone and the private server
+is on default settings at day 7, so acid barely occurs there. The patch notes say so plainly and ask for reports.
+
 ## Then
 
 Green on A-G: commit and push. Anything red: report the log lines, do not commit around it.

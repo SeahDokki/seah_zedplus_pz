@@ -81,12 +81,21 @@ zombie. `SZedPlus_Persistence` exists for that: it keeps an identity ledger in w
 **T1-T5** Zed+, holding stage, path, form, durable form state (the Boomer's bottle), the T4 spawn day, the last known
 position and a set of fingerprints. When a rebuilt zombie appears, `findClaim` looks for its record *before* any
 spawn roll happens, so a reconstructed special can never be re-rolled into something else. Matching is layered:
-`getSharedDescriptorID()` first (indexed, 64-tile radius), then a 6-tile spatial fallback scored on persistent outfit
-id and sex, with a mismatched descriptor as a hard veto. `attachClaim` then binds the record to the new IsoZombie
-without consuming it, so the persistId survives the round trip. Not the same object — that is impossible — but the
-identity returns. **The descriptor's stability across virtualisation is an assumption, not a documented guarantee**;
-`SZedPlus_EngineIdentityProbe` exists to measure it, and the 64-tile radius is only as sound as that measurement.
-Note the asymmetry it creates: after a *reload* modData is intact while the engine has
+position, within six tiles, scored on a couple of weak fingerprints and sex. `attachClaim` then binds the record to
+the new IsoZombie without consuming it, so the persistId survives the round trip. Not the same object — that is
+impossible — but the identity returns.
+
+**`getSharedDescriptorID()` is not a zombie identity, and do not build on it as one.** The contributed version of this
+module matched on it out to 64 tiles, on the assumption that it is a stable engine id. Measured in game 6 Sep 2026
+over 536 paired samples: the value differs across a reconstruction **94.6%** of the time, it is byte-identical to
+`getPersistentOutfitID()` in all 463 samples where both existed, and 43 distinct identities collided on a shared
+value inside one session. It is the current outfit's packed id, re-derived whenever the engine redresses the zombie.
+The radius is back to six and the mismatch veto is gone — at that rate it would have rejected almost every
+legitimate reclaim, silently, since a vetoed candidate never reaches the log. Note also that
+`safeSharedDescriptorId` rejecting `value <= 0` made this look *stable* at first: 61% of these ids are negative, so
+the filter kept a minority that self-selected for the unchanged cases. A guard can manufacture its own evidence.
+
+Note the asymmetry a reload creates: modData is intact while the engine has
 rebuilt the model from the descriptor, so flags like `outfitApplied` come back set describing clothes that no longer
 exist. Ask the zombie what it is wearing rather than trusting the flag. Cross-zombie state (the calamity registry,
 used for the "one Calamity per 150-tile radius" exclusion) cannot live there; it lives in
@@ -582,9 +591,10 @@ modifiers, all seven T5 forms with their behaviours and outfits, per-form spawn 
 across chunk unloads and population-manager virtualisation, the acid system, the Bandits guard, and the debug tooling
 (right-click > Debug > Zed+: spawn any tier, GetStats panel, inspect, remove, redress nearby T5s).
 
-**Temporary, must not ship:** `SZedPlus_EngineIdentityProbe.lua`, `SZedPlus_EngineIdentityProbeMenu.lua` and the one
-`noteNaturalRoll` call in `SZedPlus_Spawn.lua` are diagnostic-only, added to measure whether
-`getSharedDescriptorID()` actually survives virtualisation. Delete all three before a release build.
+`SZedPlus_Persistence` keeps two log lines marked `PROBE2` — one per reclaim, comparing the fingerprints the record
+stored against what the engine rebuilt, and a ledger census on `EveryTenMinutes`. They are gated on the `Debug`
+sandbox option like everything else, so they cost a player nothing, and they are the only instrumentation that has
+ever produced a usable answer here: ask a reporter to switch Debug on and the log says what actually happened.
 
 Not implemented: the Stealth short-aggro behaviour (no way to set hearing - needs a different mechanism), the Ranged
 putrefaction gas, the Volatile, every T6 Calamity, tier promotion (T4 to T5/T6), and the Thriller easter egg.

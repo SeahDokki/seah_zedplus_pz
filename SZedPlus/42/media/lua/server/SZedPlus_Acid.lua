@@ -55,9 +55,18 @@ local CLOTHING_WEAR_CHANCE = 12
 ---
 --- The id is what lets the renderer keep a marker alive across sweeps instead
 --- of tearing it down and rebuilding it ten times a second.
+--- Network module name for the drawable set pushed to multiplayer clients.
+local MODULE = "SZedPlusAcid"
+
+--- How often that set goes over the wire, in ticks. The sweep itself runs ten
+--- times a second, which a puddle fading over three seconds does not need.
+local BROADCAST_INTERVAL_TICKS = 30
+
 local pools = {}
 local poolCount = 0
 local nextPoolId = 1
+local broadcastCounter = 0
+local publishedEmpty = false
 
 --- How long each player has been standing in acid, keyed by username so the
 --- count survives a player object being rebuilt.
@@ -212,14 +221,40 @@ local function burn(player)
     end)
 end
 
+--- Hand the drawable set to whoever is going to draw it.
+---
+--- Single player and a co-op host share one Lua state with the renderer, so the
+--- call goes straight through. A dedicated server has no renderer, and a
+--- multiplayer client never runs this file - it returns at the isClient() guard -
+--- so a remote player only ever sees a puddle if it is sent to them. Without
+--- this the acid is invisible in multiplayer: gear corrodes, skin burns, and
+--- there is nothing on screen to explain either.
+local function publish(drawable, force)
+    if SZedPlus.AcidRender then SZedPlus.AcidRender.setPools(drawable) end
+    if not isServer() then return end
+
+    -- Emptying the set is always sent immediately, so a client cannot be left
+    -- drawing a pool that has expired.
+    broadcastCounter = broadcastCounter + SWEEP_INTERVAL_TICKS
+    if not force and broadcastCounter < BROADCAST_INTERVAL_TICKS then return end
+    broadcastCounter = 0
+
+    sendServerCommand(MODULE, "acidPools", { pools = drawable })
+end
+
 --- One pass: age the pools, drop the expired ones, and burn anyone standing in
 --- one for long enough.
 local function sweep()
     if poolCount == 0 then
         exposure = {}
-        if SZedPlus.AcidRender then SZedPlus.AcidRender.setPools({}) end
+        -- Once, not ten times a second for as long as there is no acid.
+        if not publishedEmpty then
+            publish({}, true)
+            publishedEmpty = true
+        end
         return
     end
+    publishedEmpty = false
 
     local remaining = {}
     local remainingCount = 0
@@ -236,22 +271,20 @@ local function sweep()
     pools = remaining
     poolCount = remainingCount
 
-    -- Hand the drawable set to the client renderer. Only position and a fade,
-    -- never anything it could decide for itself.
-    if SZedPlus.AcidRender then
-        local drawable = {}
-        for index = 1, poolCount do
-            local pool = pools[index]
-            drawable[index] = {
-                id = pool.id,
-                x = pool.x, y = pool.y, z = pool.z,
-                radius = pool.radius,
-                -- Fades over the last few seconds of its life.
-                alpha = math.min(1.0, pool.ticks / 180) * 0.85,
-            }
-        end
-        SZedPlus.AcidRender.setPools(drawable)
+    -- Hand the drawable set out. Only position and a fade, never anything the
+    -- renderer could decide for itself.
+    local drawable = {}
+    for index = 1, poolCount do
+        local pool = pools[index]
+        drawable[index] = {
+            id = pool.id,
+            x = pool.x, y = pool.y, z = pool.z,
+            radius = pool.radius,
+            -- Fades over the last few seconds of its life.
+            alpha = math.min(1.0, pool.ticks / 180) * 0.85,
+        }
     end
+    publish(drawable)
 
     local players = getPlayers()
     if players == nil then return end

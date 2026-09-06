@@ -427,4 +427,14 @@ function SZedPlus.AcidRender.clear()
     clearOverlays()
 end
 
+--- On a multiplayer client the pools live on the server and this file is the only
+--- half of the acid that loads, so the drawable set arrives over the wire instead
+--- of through a direct call. Single player never sends this - there, the sweep
+--- reaches setPools directly - so the two paths do not fight over the same state.
+local function onServerCommand(module, command, args)
+    if module ~= "SZedPlusAcid" or command ~= "acidPools" then return end
+    SZedPlus.AcidRender.setPools(args and args.pools or {})
+end
+
+Events.OnServerCommand.Add(onServerCommand)
 Events.OnPlayerDeath.Add(SZedPlus.AcidRender.clear)

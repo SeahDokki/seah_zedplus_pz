@@ -259,15 +259,7 @@ function SZedPlus.Spawn.onZombieCreate(zombie)
         end
     end
 
-    -- TEMP ENGINE_IDENTITY_PROBE2: diagnostic-only marker. This does not
-    -- consume RNG or alter classification; it records only that this zombie
-    -- reached the existing natural SpawnRate lottery. Remove for release.
-    local spawnRate = SZedPlus.Config.get("SpawnRate")
-    if SZedPlus.EngineIdentityProbe and SZedPlus.EngineIdentityProbe.noteNaturalRoll then
-        SZedPlus.EngineIdentityProbe.noteNaturalRoll(zombie, spawnRate)
-    end
-
-    if SZedPlus.rollOneIn(spawnRate) then
+    if SZedPlus.rollOneIn(SZedPlus.Config.get("SpawnRate")) then
         local spec = rollSpec(SZedPlus.getCurrentDay())
         if spec then
             SZedPlus.Spawn.applySpec(zombie, spec)
